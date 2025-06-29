@@ -1,4 +1,3 @@
-
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -21,3 +20,16 @@ engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+
+class DBConnector:
+    def __init__(self, connection_string):
+        self.connection_string = connection_string
+
+    def connect(self):
+        # Implement the connection logic here
+        pass
+
+    def disconnect(self):
+        # Implement the disconnection logic here
+        pass
