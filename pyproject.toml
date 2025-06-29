@@ -1,0 +1,29 @@
+[project]
+name = "myUSDCarbitrage"
+version = "0.1.0"
+description = "USDC multi-exchange & multi-timeframe arbitrage back testing backend application"
+authors = [
+    {name = "Alexander Jensen", email = "thanotosq@gmail.com"},
+]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "python-jose[cryptography]",
+    "passlib[bcrypt]",
+    "python-dotenv",
+    "slowapi",
+    "python-multipart",
+    "psycopg2-binary",
+    "pandas",
+    "ccxt",
+    "numpy",
+    "schedule",
+    "plotly",
+    "dotenv>=0.9.9",
+]
+requires-python = ">=3.11"
+readme = "README.md"
+license = {text = "MIT"}
+
+[tool.pdm]
+distribution = false
