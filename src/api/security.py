@@ -23,12 +23,6 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-# Simple user database (replace with real DB in production)
-USERS_DB = {
-    "admin": {"password": get_password_hash("securepassword123"), "roles": ["admin"]},
-    "trader": {"password": get_password_hash("traderpass"), "roles": ["user"]}
-}
-
 def create_access_token(data: dict):
     expires = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     data.update({"exp": expires})
@@ -48,3 +42,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         return username
     except JWTError:
         raise credentials_exception
+
+# Simple user database (replace with real DB in production)
+USERS_DB = {
+    "admin": {"password": "securepassword123", "roles": ["admin"]},
+    "trader": {"password": "traderpass", "roles": ["user"]}
+}
+
+def authenticate_user(username: str, password: str):
+    user = USERS_DB.get(username)
+    if not user:
+        return False
+    if not verify_password(password, user["password"]):
+        return False
+    return user

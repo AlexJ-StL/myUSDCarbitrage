@@ -1,55 +1,29 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from ..dependencies import get_admin_user
-import importlib
-import inspect
-import shutil
-from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from .. import models
+from ..database import SessionLocal
+from typing import List
 
 router = APIRouter()
 
-# Strategy loader functions
-STRATEGY_DIR = Path("src/strategies")
-strategies = {}
-
-def load_strategies():
-    """Load all strategies in strategies directory"""
-    if not STRATEGY_DIR.exists():
-        STRATEGY_DIR.mkdir()
-    for file in STRATEGY_DIR.glob("*.py"):
-        strategy_name = file.stem
-        spec = importlib.util.spec_from_file_location(
-            strategy_name,
-            str(file)
-        )
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        # Find strategy functions
-        for name, obj in inspect.getmembers(module):
-            if inspect.isfunction(obj) and name.startswith("strategy_"):
-                strategies[name.split("_", 1)[1]] = obj
-
-@router.post("/register", summary="Upload a new strategy")
-async def register_strategy(file: UploadFile, user=Depends(get_admin_user)):
+# Dependency
+def get_db():
+    db = SessionLocal()
     try:
-        # Save to strategies directory
-        file_path = STRATEGY_DIR / file.filename
-        with open(file_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
+        yield db
+    finally:
+        db.close()
 
-        # Reload strategies
-        load_strategies()
-        return {"status": "registered", "strategies": list(strategies.keys())}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+@router.post("/strategies/", response_model=models.Strategy)
+def create_strategy(strategy: models.Strategy, db: Session = Depends(get_db)):
+    db_strategy = models.Strategy(**strategy.dict())
+    db.add(db_strategy)
+    db.commit()
+    db.refresh(db_strategy)
+    return db_strategy
 
-@router.get("/", summary="List available strategies")
-async def list_strategies():
-    return {"strategies": list(strategies.keys())}
-
-def get_strategy_function(name: str):
-    if not strategies:
-        load_strategies()
-    if name not in strategies:
-        raise ValueError(f"Unknown strategy: {name}")
-    return strategies[name]
+@router.get("/strategies/", response_model=List[models.Strategy])
+def read_strategies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    strategies = db.query(models.Strategy).offset(skip).limit(limit).all()
+    return strategies
