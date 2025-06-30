@@ -1,4 +1,3 @@
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -171,3 +170,8 @@ historical_data/
 # SSL Certificates
 *.pem
 *.key
+
+# Supplimentary Development Docs
+.dev\*
+.dev\directory_tree_2025-06-29
+.dev\USDC arbitrage backtesting project.md

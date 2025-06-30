@@ -1,8 +1,9 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
+import pandas as pd
 
 load_dotenv()
 
@@ -25,6 +26,8 @@ Base = declarative_base()
 class DBConnector:
     def __init__(self, connection_string):
         self.connection_string = connection_string
+        self.connection = None
+        self.engine = create_engine(self.connection_string)
 
     def connect(self):
         # Implement the connection logic here
@@ -33,3 +36,22 @@ class DBConnector:
     def disconnect(self):
         # Implement the disconnection logic here
         pass
+
+    def get_ohlcv_data(self, exchange, symbol, timeframe):
+        # Implement the logic to retrieve OHLCV data from the database
+        # This is a placeholder implementation
+        query = """
+        SELECT timestamp, open, high, low, close, volume
+        FROM market_data
+        WHERE exchange = :exchange AND symbol = :symbol AND timeframe = :timeframe
+        """
+        try:
+            with self.engine.connect() as connection:
+                result = connection.execute(
+                    text(query),
+                    {"exchange": exchange, "symbol": symbol, "timeframe": timeframe},
+                )
+                df = pd.DataFrame(result.fetchall(), columns=result.keys())
+                return df
+        except Exception as e:
+            raise e

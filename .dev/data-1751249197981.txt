@@ -1,0 +1,41 @@
+2025-06-29 01:36:47 CDT LOG:  checkpoint starting: time
+2025-06-29 01:36:54 CDT LOG:  checkpoint complete: wrote 60 buffers (0.4%); 0 WAL file(s) added, 0 removed, 0 recycled; write=6.483 s, sync=0.026 s, total=6.521 s; sync files=54, longest=0.002 s, average=0.001 s; distance=203 kB, estimate=3364 kB; lsn=0/1A67150, redo lsn=0/1A670F8
+2025-06-29 03:34:13 CDT ERROR:  CREATE DATABASE cannot run inside a transaction block
+2025-06-29 03:34:13 CDT STATEMENT:  -- Database: usdc_arbitrage
+	
+	-- DROP DATABASE IF EXISTS usdc_arbitrage;
+	
+	CREATE DATABASE usdc_arbitrage
+	    WITH
+	    OWNER = postgres
+	    ENCODING = 'UTF8'
+	    LC_COLLATE = 'English_United States.1252'
+	    LC_CTYPE = 'English_United States.1252'
+	    LOCALE_PROVIDER = 'libc'
+	    TABLESPACE = pg_default
+	    CONNECTION LIMIT = -1
+	    IS_TEMPLATE = False;
+	
+	GRANT TEMPORARY, CONNECT ON DATABASE usdc_arbitrage TO PUBLIC;
+	
+	GRANT ALL ON DATABASE usdc_arbitrage TO arb_user;
+	
+	GRANT ALL ON DATABASE usdc_arbitrage TO postgres;
+2025-06-29 03:38:33 CDT ERROR:  syntax error at or near ")" at character 90
+2025-06-29 03:38:33 CDT STATEMENT:  -- Run this in PostgreSQL to check data:
+	SELECT
+	    exchange,
+	    timeframe,
+	    COUNT(**) as records,
+	    MIN(timestamp) as start,
+	    MAX(timestamp) as end
+	FROM market_data
+	GROUP BY exchange, timeframe;
+2025-06-29 03:48:52 CDT LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2025-06-29 03:48:52 CDT LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2025-06-29 03:48:52 CDT LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	
+2025-06-29 03:48:52 CDT LOG:  could not receive data from client: An existing connection was forcibly closed by the remote host.
+	

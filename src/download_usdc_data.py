@@ -44,8 +44,10 @@ def fetch_ohlcv(exchange, symbol, timeframe, since, until, sleep_time=1):
 
 
 def main():
-    db = DBConnector(DATABASE_URL)
-    validator = DataValidator()
+    connection_string = (
+        "postgresql://arb_user:strongpassword@localhost:5432/usdc_arbitrage"
+    )
+    validator = DataValidator(connection_string)
     exchanges = {
         "coinbase": ccxt.coinbase(),  # type: ignore
         "kraken": ccxt.kraken(),  # type: ignore
@@ -84,24 +86,25 @@ def main():
             logger.warning(f"{actual_symbol} not available on {name}")
             continue
 
-        for tf in timeframes:
-            logger.info(f"\nFetching {actual_symbol} from {name} ({tf})...")
-            since = int(start_date.timestamp() * 1000)
-            until = int(end_date.timestamp() * 1000)
+    for tf in timeframes:
+        logger.info(f"\nFetching {actual_symbol} from {name} ({tf})...")
+        since = int(start_date.timestamp() * 1000)
+        until = int(end_date.timestamp() * 1000)
 
-            ohlcv = fetch_ohlcv(exchange, actual_symbol, tf, since, until)
-            if ohlcv:
-                logger.info(f"Inserting {len(ohlcv)} records into database...")
-                # db.insert_ohlcv(name, actual_symbol, tf, ohlcv)
+        ohlcv = fetch_ohlcv(exchange, actual_symbol, tf, since, until)
+        if ohlcv:
+            logger.info(f"Inserting {len(ohlcv)} records into database...")
+            # db.insert_ohlcv(name, actual_symbol, tf, ohlcv)
 
-                # Validate only if data was inserted
-                validation_results = validator.validate_dataset(name, actual_symbol, tf)
+            # Validate only if data was inserted
+            validation_results = validator.validate_data(name, actual_symbol, tf)
 
-                # Handle critical errors
-                if validation_results.get("price_errors"):
-                    logger.error(f"Critical data issues detected for {name}/{tf}")
-                else:
-                    logger.info(f"Data validation passed for {name}/{tf}")
+        # Handle critical errors
+        if validation_results and validation_results.get("price_errors"):
+            logger.error(f"Critical data issues detected for {name}/{tf}")
+        else:
+            # Proceed with further processing
+            pass
 
 
 if __name__ == "__main__":

@@ -1,0 +1,38 @@
+myUSDCarbitrage/
+├── data_downloader.log
+├── data_validation.log
+├── pyproject.toml
+├── README.md
+├── src/
+│   ├── __init__.py
+│   ├── __pycache__/
+│   │   ├── __init__.cpython-313.pyc
+│   │   └── download_usdc_data.cpython-313.pyc
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── __pycache__/
+│   │   ├── data_validation.py
+│   │   ├── database.py
+│   │   ├── dependencies.py
+│   │   ├── main.py
+│   │   ├── models.py
+│   │   ├── routers/
+│   │   └── security.py
+│   ├── download_usdc_data.py
+│   ├── myUSDCarbitrage.egg-info/
+│   │   ├── dependency_links.txt
+│   │   ├── PKG-INFO
+│   │   ├── requires.txt
+│   │   ├── SOURCES.txt
+│   │   └── top_level.txt
+│   ├── README_DATABASE_SETUP.md
+│   ├── setup_database.py
+│   ├── strategies/
+│   │   ├── __init__.py
+│   │   └── simple_arb.py
+│   └── validation_report.py
+├── tests/
+│   ├── __pycache__/
+│   │   └── test_data_validation.cpython-313-pytest-8.4.1.pyc
+│   └── test_data_validation.py
+└── uv.lock

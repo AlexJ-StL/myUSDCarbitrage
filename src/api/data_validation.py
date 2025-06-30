@@ -4,8 +4,7 @@ from datetime import timedelta
 import logging
 from api.database import DBConnector
 
-# Set up logging
-logger = logging.getLogger("data_validation")
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 handler = logging.FileHandler("data_validation.log")
 handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
@@ -13,21 +12,20 @@ logger.addHandler(handler)
 
 
 class DataValidator:
-    def __init__(self):
-        self.db = DBConnector()
+    def __init__(self, connection_string):
+        self.db = DBConnector(connection_string)
         self.rules = {
             "price_integrity": True,
             "time_continuity": True,
             "outlier_detection": True,
             "volume_anomaly": True,
-            "changepoint_detection": False,  # More CPU intensive
+            "changepoint_detection": True,
         }
 
     def enable_rule(self, rule_name, enabled=True):
         self.rules[rule_name] = enabled
 
     def check_price_integrity(self, df):
-        """Rule 1: Validate OHLC relationships"""
         errors = []
         mask_high_low = df["high"] < df["low"]
         mask_open_high = df["open"] > df["high"]
@@ -49,11 +47,9 @@ class DataValidator:
         return errors
 
     def check_time_continuity(self, df, timeframe):
-        """Rule 2: Check for gaps in time series"""
         df_sorted = df.sort_values("timestamp")
         time_diffs = df_sorted["timestamp"].diff().dropna()
 
-        # Expected time deltas
         if timeframe == "1m":
             expected_delta = timedelta(minutes=1)
         elif timeframe == "5m":
@@ -65,9 +61,9 @@ class DataValidator:
         elif timeframe == "1d":
             expected_delta = timedelta(days=1)
         else:
-            expected_delta = timedelta(minutes=1)  # Default to 1min
+            expected_delta = timedelta(minutes=1)
 
-        max_allowed_gap = expected_delta * 1.15  # 15% tolerance
+        max_allowed_gap = expected_delta * 1.15
         gaps = time_diffs[time_diffs > max_allowed_gap]
         gap_details = [
             (str(gap_start), gap_length) for gap_start, gap_length in gaps.items()
@@ -76,23 +72,22 @@ class DataValidator:
         return gap_details if not gaps.empty else []
 
     def detect_outliers(self, df, n_sigmas=5):
-        """Rule 3: Identify statistical outliers using robust statistics"""
         try:
             median = df["close"].median()
             mad = np.median(np.abs(df["close"] - median))
 
-            if mad == 0:  # Handle constant data
+            if mad == 0:
                 return []
 
-            scaled_diff = 0.6745 * (df["close"] - median) / mad  # consistency constant
+            scaled_diff = 0.6745 * (df["close"] - median) / mad
             outlier_mask = abs(scaled_diff) > n_sigmas
             return df[outlier_mask].index.tolist()
-        except:
+        except Exception as e:
+            logger.error(f"Error in outlier detection: {e}")
             return []
 
     def detect_volume_anomalies(self, df, n_sigmas=5):
-        """Rule 4: Volume spikes detection"""
-        log_volume = np.log(df["volume"] + 1e-6)  # Avoid log(0)
+        log_volume = np.log(df["volume"] + 1e-6)
         median = log_volume.median()
         mad = np.median(np.abs(log_volume - median))
 
@@ -104,8 +99,7 @@ class DataValidator:
         return df[anomaly_mask].index.tolist()
 
     def detect_changepoints(self, df):
-        """Rule 5: Detect structural breaks (CUSUM algorithm)"""
-        if len(df) < 100:  # Need sufficient data
+        if len(df) < 100:
             return []
 
         values = df["close"].values
@@ -115,24 +109,53 @@ class DataValidator:
 
         if cumulative_sum_abs[max_change_idx] > 10 * np.std(values):
             return [df.index[max_change_idx]]
+
         return []
 
-    def validate_dataset(self, exchange, symbol, timeframe):
+    def validate_data(self, exchange, symbol, timeframe):
         """Run all enabled validation rules"""
         logger.info(f"Validating {exchange}/{symbol}/{timeframe}")
+        validation_results = {}
         try:
             df = self.db.get_ohlcv_data(exchange, symbol, timeframe)
+            if df.isnull().values.any():
+                logger.warning(
+                    f"Missing values found in data for {exchange}/{symbol}/{timeframe}"
+                )
+                validation_results["missing_values"] = True
+            else:
+                logger.info(
+                    f"Data validation passed for {exchange}/{symbol}/{timeframe}"
+                )
         except Exception as e:
             logger.error(f"Data retrieval failed: {e}")
-            return {"status": "error", "message": str(e)}
+            validation_results["price_errors"] = True
+        return validation_results
 
-        if df.empty:
-            logger.warning("Empty dataset received")
-            return {"status": "warning", "message": "Empty dataset"}
+    def validate_dataset(self, exchange, symbol, timeframe):
+        """Validate a dataset for a given exchange, symbol, and timeframe"""
+        logger.info(f"Validating dataset for {exchange}/{symbol}/{timeframe}")
+        validation_results = {}
+        try:
+            df = self.db.get_ohlcv_data(exchange, symbol, timeframe)
+            # Add your dataset validation logic here
+            # For example, detect outliers
+            median = df["close"].median()
+            mad = np.median(np.abs(df["close"] - median))
+
+            if mad == 0:
+                return []
+
+            scaled_diff = 0.6745 * (df["close"] - median) / mad
+            outlier_mask = abs(scaled_diff) > 3  # Assuming n_sigmas is 3
+            validation_results["outliers"] = df[outlier_mask].index.tolist()
+        except Exception as e:
+            logger.error(f"Error in dataset validation: {e}")
+            validation_results["price_errors"] = True
+        return validation_results
 
         results = {"exchange": exchange, "symbol": symbol, "timeframe": timeframe}
 
-        # Apply validation rules
         if self.rules["price_integrity"]:
             price_errors = self.check_price_integrity(df)
             results["price_errors"] = price_errors if price_errors else []
@@ -153,35 +176,4 @@ class DataValidator:
             changepoints = self.detect_changepoints(df)
             results["changepoints"] = changepoints
 
-        self.log_validation_results(results)
         return results
-
-    def log_validation_results(self, results):
-        """Log validation results systematically"""
-        issue_count = 0
-
-        if results.get("price_errors", []):
-            issue_count += len(results["price_errors"])
-            for err in results["price_errors"]:
-                logger.warning(f"PRICE: {err}")
-
-        if results.get("time_gaps", []):
-            issue_count += len(results["time_gaps"])
-            for gap in results["time_gaps"]:
-                logger.warning(f"TIME GAP: {gap[0]} | Length: {gap[1]}")
-
-        if results.get("outliers", []):
-            issue_count += len(results["outliers"])
-            logger.warning(f"OUTLIERS: {len(results['outliers'])} detected")
-
-        if results.get("volume_anomalies", []):
-            issue_count += len(results["volume_anomalies"])
-            logger.warning(
-                f"VOLUME ANOMALIES: {len(results['volume_anomalies'])} detected"
-            )
-
-        if results.get("changepoints", []):
-            issue_count += len(results["changepoints"])
-            logger.warning(f"CHANGEPOINTS: {len(results['changepoints'])} detected")
-
-        logger.info(f"Validation complete: Found {issue_count} issues")

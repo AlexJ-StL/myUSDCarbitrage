@@ -1,22 +1,19 @@
-# The line `from .data_validation import DataValidator` is importing the `DataValidator` class from a
-# module named `data_validation` that is located in the same directory as the current script. The dot
-# `.` before `data_validation` indicates that the module is in the same package or directory as the
-# script being executed.
 from api.data_validation import DataValidator
 import pandas as pd
-import json
 
 
 def generate_validation_report():
-    validator = DataValidator()
+    connection_string = (
+        "postgresql://arb_user:strongpassword@localhost:5432/usdc_arbitrage"
+    )
+    validator = DataValidator(connection_string)
+    validator.validate_data("exchange_name", "symbol_name", "timeframe_value")
     log_entries = []
 
-    # All exchange/timeframe combinations
     exchanges = ["coinbase", "kraken", "binance"]
     timeframes = ["1h", "4h", "1d"]
     symbol_map = {"coinbase": "USDC/USD", "kraken": "USDC/USD", "binance": "USDC/USDT"}
 
-    # Include additional timeframes if needed
     for exchange in exchanges:
         for timeframe in timeframes:
             result = validator.validate_dataset(
@@ -24,10 +21,8 @@ def generate_validation_report():
             )
             log_entries.append(result)
 
-    # Convert to dataframe
     report_df = pd.DataFrame(log_entries)
 
-    # Calculate issue counts
     for col in [
         "price_errors",
         "time_gaps",
@@ -38,9 +33,7 @@ def generate_validation_report():
         if col in report_df.columns:
             report_df[col + "_count"] = report_df[col].apply(len)
 
-    # Save to HTML report
     report_df.to_html("data_validation_report.html", index=False)
-    report_df.to_json("data_validation_report.json", indent=2, default=str)
     print("Validation report generated")
 
 
