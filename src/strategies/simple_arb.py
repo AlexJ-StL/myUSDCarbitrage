@@ -7,17 +7,17 @@ def strategy_simple_arb(
     sell_threshold: float,
     initial_capital: float,
 ):
-    position = 0
+    position = 0.0
     cash = initial_capital
     trades = []
-    portfolio = [{"date": df.iloc[0]["timestamp"], "value": cash}]
+    portfolio = [{"date": df.iloc[0]["timestamp"], "value": float(cash)}]
 
     for i, row in df.iterrows():
         price = row["close"]
 
         if price <= buy_threshold and cash > 0:
             position = cash / price
-            cash = 0
+            cash = 0.0
             trades.append(
                 {
                     "type": "buy",
@@ -29,16 +29,17 @@ def strategy_simple_arb(
 
         elif price >= sell_threshold and position > 0:
             cash = position * price
-            position = 0
+            position = 0.0
             trades.append(
                 {
                     "type": "sell",
                     "datetime": row["timestamp"],
                     "price": price,
-                    "position": cash,
+                    "position": position,
                 }
             )
 
-        portfolio.append({"date": row["timestamp"], "value": cash + (position * price)})
+        portfolio_value = cash + (position * price)
+        portfolio.append({"date": row["timestamp"], "value": portfolio_value})
 
     return {"trades": trades, "portfolio": portfolio}

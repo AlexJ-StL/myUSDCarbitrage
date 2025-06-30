@@ -55,3 +55,21 @@ class DBConnector:
                 return df
         except Exception as e:
             raise e
+
+    def get_user_roles(self, username):
+        query = """
+        SELECT role
+        FROM user_roles
+        WHERE username = :username
+        """
+        try:
+            with self.engine.connect() as connection:
+                result = connection.execute(text(query), {"username": username})
+                roles = [row["role"] for row in result.fetchall()]
+                return roles
+        except Exception as e:
+            raise e
+
+    def disconnect(self):
+        # Implement any necessary cleanup here
+        pass
