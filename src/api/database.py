@@ -24,16 +24,16 @@ Base = declarative_base()
 
 
 class OHLCVData(Base):
-    __tablename__ = "ohlcv_data"
+    __tablename__ = "market_data"
     id = Column(Integer, primary_key=True, index=True)
     exchange = Column(String, index=True)
     symbol = Column(String, index=True)
     timeframe = Column(String, index=True)
     timestamp = Column(DateTime, index=True)
-    open_price = Column(Float)
-    high_price = Column(Float)
-    low_price = Column(Float)
-    close_price = Column(Float)
+    open = Column(Float)
+    high = Column(Float)
+    low = Column(Float)
+    close = Column(Float)
     volume = Column(Float)
 
 
@@ -98,10 +98,10 @@ class Database:
                 "symbol": symbol,
                 "timeframe": timeframe,
                 "timestamp": datetime.fromtimestamp(entry[0] / 1000),
-                "open_price": entry[1],
-                "high_price": entry[2],
-                "low_price": entry[3],
-                "close_price": entry[4],
+                "open": entry[1],
+                "high": entry[2],
+                "low": entry[3],
+                "close": entry[4],
                 "volume": entry[5],
             }
             ohlcv_entry = OHLCVData(**ohlcv_data)

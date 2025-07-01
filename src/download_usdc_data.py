@@ -32,15 +32,9 @@ def fetch_ohlcv(exchange, symbol, timeframe, since, until, sleep_time=1):
             time.sleep(sleep_time)
             if ohlcv[-1][0] >= until:
                 break
-        except ccxt.NetworkError as e:
-            logger.error(f"Network error: {e}")
-            time.sleep(sleep_time)
-        except ccxt.ExchangeError as e:
-            logger.error(f"Exchange error: {e}")
-            break
         except Exception as e:
-            logger.error(f"Unexpected error: {e}")
-            break
+            logger.error(f"An error occurred: {e}")
+            time.sleep(sleep_time)
 
     return all_ohlcv
 
