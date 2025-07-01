@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from src.api.database import DBConnector, Database
+from api.database import DBConnector, Database
 import pandas as pd
 from sqlalchemy import text
 
