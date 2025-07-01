@@ -1,17 +1,16 @@
 import ccxt
-import pandas as pd
-import time
-from datetime import datetime, timedelta
-from api.database import DBConnector, DATABASE_URL
-from api.data_validation import DataValidator
 import logging
+from datetime import datetime, timezone, timedelta
+from api.database import Database, DBConnector
+from api.data_validation import DataValidator
+import time
 
-# Set up logging
-logger = logging.getLogger("data_downloader")
-logger.setLevel(logging.INFO)
-handler = logging.FileHandler("data_downloader.log")
-handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
-logger.addHandler(handler)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize database
+DB = Database()
 
 
 def fetch_ohlcv(exchange, symbol, timeframe, since, until, sleep_time=1):
@@ -21,7 +20,9 @@ def fetch_ohlcv(exchange, symbol, timeframe, since, until, sleep_time=1):
     timeframe_duration = exchange.timeframes[timeframe] * 1000
 
     while current_since < until:
-        logger.info(f"Fetching from {datetime.utcfromtimestamp(current_since/1000)}")
+        logger.info(
+            f"Fetching from {datetime.fromtimestamp(current_since/1000, timezone.utc)}"
+        )
         try:
             ohlcv = exchange.fetch_ohlcv(symbol, timeframe, current_since, limit=1000)
             if not ohlcv:
@@ -33,78 +34,74 @@ def fetch_ohlcv(exchange, symbol, timeframe, since, until, sleep_time=1):
                 break
         except ccxt.NetworkError as e:
             logger.error(f"Network error: {e}")
-            time.sleep(5)  # wait before retrying
+            time.sleep(sleep_time)
         except ccxt.ExchangeError as e:
             logger.error(f"Exchange error: {e}")
             break
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             break
+
     return all_ohlcv
 
 
 def main():
-    connection_string = (
-        "postgresql://arb_user:strongpassword@localhost:5432/usdc_arbitrage"
+    # Initialize exchanges
+    coinbase = getattr(ccxt, 'coinbase')()
+    kraken = getattr(ccxt, 'kraken')()
+    binance = getattr(ccxt, 'binance')()
+
+    # Define parameters
+    symbol = "USDC/USD"
+    timeframe = "1h"
+    end_date = datetime.now(timezone.utc)
+    start_date = end_date - timedelta(days=1)
+
+    # Fetch data
+    coinbase_data = fetch_ohlcv(
+        coinbase,
+        symbol,
+        timeframe,
+        int(start_date.timestamp() * 1000),
+        int(end_date.timestamp() * 1000),
     )
-    validator = DataValidator(connection_string)
-    exchanges = {
-        "coinbase": ccxt.coinbase(),  # type: ignore
-        "kraken": ccxt.kraken(),  # type: ignore
-        "binance": ccxt.binance(),  # type: ignore
-    }
-    symbol_config = {
-        "coinbase": "USDC/USD",
-        "kraken": "USDC/USD",
-        "binance": "USDC/USDT",
-    }
-    timeframes = ["1h", "4h", "1d"]
-    end_date = datetime.utcnow()
-    start_date = end_date - timedelta(days=365 * 3)  # 3 years
+    kraken_data = fetch_ohlcv(
+        kraken,
+        symbol,
+        timeframe,
+        int(start_date.timestamp() * 1000),
+        int(end_date.timestamp() * 1000),
+    )
+    binance_data = fetch_ohlcv(
+        binance,
+        symbol,
+        timeframe,
+        int(start_date.timestamp() * 1000),
+        int(end_date.timestamp() * 1000),
+    )
 
-    for name, exchange in exchanges.items():
-        try:
-            exchange.load_markets()
-        except ccxt.ExchangeNotAvailable:
-            logger.warning(
-                f"Could not connect to {name}. It may be unavailable in your region."
-            )
-            continue
-        actual_symbol = symbol_config.get(name)
+    # Validate data
+    validator = DataValidator(connection_string="connection_string")
+    coinbase_validation = validator.validate_data("coinbase", symbol, timeframe)
+    kraken_validation = validator.validate_data("kraken", symbol, timeframe)
+    binance_validation = validator.validate_data("binance", symbol, timeframe)
 
-        # Ensure markets are loaded and symbol is available
-        if not hasattr(exchange, "symbols") or exchange.symbols is None:
-            logger.warning(f"Markets not loaded for {name}")
-            continue
+    # Check for critical errors
+    if (
+        coinbase_validation["price_errors"]
+        or kraken_validation["price_errors"]
+        or binance_validation["price_errors"]
+    ):
+        logger.error("Critical data issues detected")
+        return
 
-        # Ensure markets are loaded and symbol is available
-        if not hasattr(exchange, "symbols") or exchange.symbols is None:
-            logger.warning(f"Markets not loaded for {name}")
-            continue
-
-        if actual_symbol not in exchange.symbols:
-            logger.warning(f"{actual_symbol} not available on {name}")
-            continue
-
-    for tf in timeframes:
-        logger.info(f"\nFetching {actual_symbol} from {name} ({tf})...")
-        since = int(start_date.timestamp() * 1000)
-        until = int(end_date.timestamp() * 1000)
-
-        ohlcv = fetch_ohlcv(exchange, actual_symbol, tf, since, until)
-        if ohlcv:
-            logger.info(f"Inserting {len(ohlcv)} records into database...")
-            # db.insert_ohlcv(name, actual_symbol, tf, ohlcv)
-
-            # Validate only if data was inserted
-            validation_results = validator.validate_data(name, actual_symbol, tf)
-
-        # Handle critical errors
-        if validation_results and validation_results.get("price_errors"):
-            logger.error(f"Critical data issues detected for {name}/{tf}")
-        else:
-            # Proceed with further processing
-            pass
+    # Insert data into database
+    logger.info(f"Inserting {len(coinbase_data)} records into database...")
+    DB.insert_data("coinbase", symbol, timeframe, coinbase_data)
+    logger.info(f"Inserting {len(kraken_data)} records into database...")
+    DB.insert_data("kraken", symbol, timeframe, kraken_data)
+    logger.info(f"Inserting {len(binance_data)} records into database...")
+    DB.insert_data("binance", symbol, timeframe, binance_data)
 
 
 if __name__ == "__main__":

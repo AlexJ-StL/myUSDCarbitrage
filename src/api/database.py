@@ -1,6 +1,7 @@
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 import os
 from dotenv import load_dotenv
 import pandas as pd
@@ -19,8 +20,24 @@ if not DATABASE_URL:
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
+
+
+class OHLCVData(Base):
+    __tablename__ = "ohlcv_data"
+    id = Column(Integer, primary_key=True, index=True)
+    exchange = Column(String, index=True)
+    symbol = Column(String, index=True)
+    timeframe = Column(String, index=True)
+    timestamp = Column(DateTime, index=True)
+    open_price = Column(Float)
+    high_price = Column(Float)
+    low_price = Column(Float)
+    close_price = Column(Float)
+    volume = Column(Float)
+
+
+Base.metadata.create_all(bind=engine)
 
 
 class DBConnector:
@@ -30,19 +47,15 @@ class DBConnector:
         self.engine = create_engine(self.connection_string)
 
     def connect(self):
-        # Implement the connection logic here
         pass
 
     def disconnect(self):
-        # Implement the disconnection logic here
         pass
 
     def get_ohlcv_data(self, exchange, symbol, timeframe):
-        # Implement the logic to retrieve OHLCV data from the database
-        # This is a placeholder implementation
         query = """
-        SELECT timestamp, open, high, low, close, volume
-        FROM market_data
+        SELECT timestamp, open_price, high_price, low_price, close_price, volume
+        FROM ohlcv_data
         WHERE exchange = :exchange AND symbol = :symbol AND timeframe = :timeframe
         """
         try:
@@ -71,5 +84,29 @@ class DBConnector:
             raise e
 
     def disconnect(self):
-        # Implement any necessary cleanup here
         pass
+
+
+class Database:
+    def __init__(self):
+        self.db = SessionLocal()
+
+    def insert_data(self, exchange, symbol, timeframe, data):
+        for entry in data:
+            ohlcv_data = {
+                "exchange": exchange,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "timestamp": datetime.fromtimestamp(entry[0] / 1000),
+                "open_price": entry[1],
+                "high_price": entry[2],
+                "low_price": entry[3],
+                "close_price": entry[4],
+                "volume": entry[5],
+            }
+            ohlcv_entry = OHLCVData(**ohlcv_data)
+            self.db.add(ohlcv_entry)
+        self.db.commit()
+
+    def close(self):
+        self.db.close()
