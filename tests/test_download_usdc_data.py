@@ -6,7 +6,7 @@ sys.path.insert(
 )
 
 import pytest
-from download_usdc_data import fetch_data
+from download_usdc_data import fetch_ohlcv
 
 
 def test_fetch_data_success():
@@ -29,6 +29,3 @@ def test_fetch_data_invalid_response():
     # with pytest.raises(ValueError):
     #     fetch_data()
     pass
-
-
-# Add more edge cases
