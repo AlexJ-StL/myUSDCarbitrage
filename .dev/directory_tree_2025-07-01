@@ -7,6 +7,7 @@ myUSDCarbitrage/
 │   ├── __init__.py
 │   ├── __pycache__/
 │   │   ├── __init__.cpython-313.pyc
+│   │   ├── download_usdc_data.cpython-312.pyc
 │   │   └── download_usdc_data.cpython-313.pyc
 │   ├── api/
 │   │   ├── __init__.py
@@ -32,7 +33,16 @@ myUSDCarbitrage/
 │   │   └── simple_arb.py
 │   └── validation_report.py
 ├── tests/
+│   ├── __init__.py
 │   ├── __pycache__/
-│   │   └── test_data_validation.cpython-313-pytest-8.4.1.pyc
-│   └── test_data_validation.py
+│   │   ├── __init__.cpython-313.pyc
+│   │   ├── test_data_validation.cpython-313-pytest-8.4.1.pyc
+│   │   ├── test_database.cpython-313-pytest-8.4.1.pyc
+│   │   ├── test_download_usdc_data.cpython-312-pytest-8.3.5.pyc
+│   │   └── test_download_usdc_data.cpython-313-pytest-8.4.1.pyc
+│   ├── data_downloader.log
+│   ├── data_validation.log
+│   ├── test_data_validation.py
+│   ├── test_database.py
+│   └── test_download_usdc_data.py
 └── uv.lock
