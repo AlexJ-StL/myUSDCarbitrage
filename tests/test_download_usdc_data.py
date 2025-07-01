@@ -126,5 +126,43 @@ class TestDownloadUSDCData(unittest.TestCase):
 
         mock_logger.error.assert_called_with("Critical data issues detected")
 
+    @patch("download_usdc_data.ccxt")
+    @patch("download_usdc_data.logger")
+    def test_fetch_ohlcv_no_data(self, mock_logger, mock_ccxt):
+        mock_exchange = MagicMock()
+        mock_exchange.timeframes = {"1h": 3600}
+        mock_exchange.fetch_ohlcv.return_value = []
+        mock_ccxt.coinbase.return_value = mock_exchange
+
+        result = fetch_ohlcv(
+            mock_exchange, "USDC/USD", "1h", 1609459200000, 1609466400000
+        )
+        self.assertEqual(len(result), 0)
+        mock_logger.info.assert_called_with("Fetching from 2021-01-01 00:00:00+00:00")
+
+    @patch("download_usdc_data.fetch_ohlcv")
+    @patch("download_usdc_data.DataValidator")
+    @patch("download_usdc_data.ccxt")
+    @patch("download_usdc_data.logger")
+    def test_main_no_data(
+        self, mock_logger, mock_ccxt, mock_validator, mock_fetch_ohlcv
+    ):
+        mock_exchange = MagicMock()
+        mock_exchange.timeframes = {"1h": 3600}
+        mock_exchange.symbols = ["USDC/USD"]
+        mock_ccxt.coinbase.return_value = mock_exchange
+        mock_ccxt.kraken.return_value = mock_exchange
+        mock_ccxt.binance.return_value = mock_exchange
+
+        mock_fetch_ohlcv.return_value = []
+
+        mock_validator_instance = MagicMock()
+        mock_validator_instance.validate_data.return_value = {"price_errors": []}
+        mock_validator.return_value = mock_validator_instance
+
+        main()
+
+        mock_logger.info.assert_any_call("Inserting 0 records into database...")
+
 
 

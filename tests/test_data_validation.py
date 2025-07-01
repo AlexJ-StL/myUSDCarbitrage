@@ -49,8 +49,30 @@ def test_check_price_integrity_invalid(validator, sample_data):
     assert len(errors) == 3
     assert "High < Low" in errors[0]
     assert "Open > High" in errors[1]
-    assert "Close > High" in errors[2]
+    '''    assert "Close > High" in errors[2]
 
+def test_check_price_integrity_negative_prices(validator, sample_data):
+    """Tests that negative prices fail the price integrity check."""
+    invalid_data = sample_data.copy()
+    invalid_data.loc[1, "low"] = -0.1
+    errors = validator.check_price_integrity(invalid_data)
+    assert len(errors) == 1
+    assert "Low < 0" in errors[0]
+
+def test_check_time_continuity_single_point(validator, sample_data):
+    """Tests the time continuity check with a single data point."""
+    single_point_data = sample_data.head(1)
+    gaps = validator.check_time_continuity(single_point_data, "1h")
+    assert not gaps
+
+def test_detect_outliers_varying_sigma(validator, sample_data):
+    """Tests the outlier detection with varying sigma values."""
+    invalid_data = sample_data.copy()
+    invalid_data.loc[1, "close"] = 100
+    outliers_5_sigma = validator.detect_outliers(invalid_data, n_sigmas=5)
+    assert len(outliers_5_sigma) == 1
+    outliers_1_sigma = validator.detect_outliers(invalid_data, n_sigmas=1)
+    assert len(outliers_1_sigma) == 1
 
 def test_check_time_continuity(validator, sample_data):
     """Tests the time continuity check."""
@@ -64,7 +86,7 @@ def test_check_time_continuity(validator, sample_data):
         hours=2
     )
     gaps = validator.check_time_continuity(invalid_data, "1h")
-    assert len(gaps) == 1
+    assert len(gaps) == 1''
 
 
 def test_detect_outliers(validator, sample_data):

@@ -44,6 +44,10 @@ class DataValidator:
         if mask_close_low.any():
             errors.append(f"{mask_close_low.sum()} Close < Low violations")
 
+        mask_low_negative = df["low"] < 0
+        if mask_low_negative.any():
+            errors.append(f"{mask_low_negative.sum()} Low < 0 violations")
+
         return errors
 
     def check_time_continuity(self, df, timeframe):
