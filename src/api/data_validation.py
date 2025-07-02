@@ -122,18 +122,32 @@ class DataValidator:
         validation_results = {}
         try:
             df = self.db.get_ohlcv_data(exchange, symbol, timeframe)
-            if df.isnull().values.any():
+
+            # Check for missing required columns
+            required_columns = ["open", "close", "high", "low", "volume", "timestamp"]
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                validation_results["missing_values"] = missing_columns
+                logger.warning(f"Missing columns found: {missing_columns}")
+                return validation_results
+
+            # Check for null values
+            null_mask = df.isnull().any(axis=1)
+            if null_mask.any():
+                null_count = null_mask.sum()
                 logger.warning(
-                    f"Missing values found in data for {exchange}/{symbol}/{timeframe}"
+                    f"{null_count} missing values found in data for {exchange}/{symbol}/{timeframe}"
                 )
-                validation_results["missing_values"] = True
+                validation_results["null_values"] = [
+                    f"{null_count} null value(s) found"
+                ]
             else:
                 logger.info(
                     f"Data validation passed for {exchange}/{symbol}/{timeframe}"
                 )
         except Exception as e:
             logger.error(f"Data retrieval failed: {e}")
-            validation_results["price_errors"] = True
+            validation_results["price_errors"] = ["Data retrieval failed"]
         return validation_results
 
     def validate_dataset(self, exchange, symbol, timeframe):
@@ -155,29 +169,5 @@ class DataValidator:
             validation_results["outliers"] = df[outlier_mask].index.tolist()
         except Exception as e:
             logger.error(f"Error in dataset validation: {e}")
-            validation_results["price_errors"] = True
+            validation_results["price_errors"] = ["Error in dataset validation"]
         return validation_results
-
-        results = {"exchange": exchange, "symbol": symbol, "timeframe": timeframe}
-
-        if self.rules["price_integrity"]:
-            price_errors = self.check_price_integrity(df)
-            results["price_errors"] = price_errors if price_errors else []
-
-        if self.rules["time_continuity"]:
-            time_gaps = self.check_time_continuity(df, timeframe)
-            results["time_gaps"] = time_gaps
-
-        if self.rules["outlier_detection"]:
-            outliers = self.detect_outliers(df)
-            results["outliers"] = outliers
-
-        if self.rules["volume_anomaly"]:
-            volume_anomalies = self.detect_volume_anomalies(df)
-            results["volume_anomalies"] = volume_anomalies
-
-        if self.rules["changepoint_detection"]:
-            changepoints = self.detect_changepoints(df)
-            results["changepoints"] = changepoints
-
-        return results
