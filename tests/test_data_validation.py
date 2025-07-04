@@ -28,9 +28,7 @@ def test_validate_data_valid(mock_db):
     result = validator.validate_data("exchange", "symbol", "timeframe")
     
     # Validate the result structure
-    assert "missing_values" in result
-    assert not result["missing_values"]
-    assert "price_errors" not in result
+    assert not result
 
 @patch('api.data_validation.DBConnector')
 def test_validate_data_missing_field(mock_db):

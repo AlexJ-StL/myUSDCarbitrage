@@ -15,15 +15,15 @@ def get_db():
     finally:
         db.close()
 
-@router.post("/strategies/", response_model=models.Strategy)
-def create_strategy(strategy: models.Strategy, db: Session = Depends(get_db)):
+@router.post("/strategies/", response_model=models.StrategyPydantic)
+def create_strategy(strategy: models.StrategyPydantic, db: Session = Depends(get_db)):
     db_strategy = models.Strategy(**strategy.dict())
     db.add(db_strategy)
     db.commit()
     db.refresh(db_strategy)
     return db_strategy
 
-@router.get("/strategies/", response_model=List[models.Strategy])
+@router.get("/strategies/", response_model=List[models.StrategyPydantic])
 def read_strategies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     strategies = db.query(models.Strategy).offset(skip).limit(limit).all()
     return strategies

@@ -15,7 +15,7 @@ def get_db():
     finally:
         db.close()
 
-@router.get("/data/", response_model=List[models.USDCData])
+@router.get("/data/", response_model=List[models.USDCDataPydantic])
 def read_usdc_data(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     usdc_data = db.query(models.USDCData).offset(skip).limit(limit).all()
     return usdc_data

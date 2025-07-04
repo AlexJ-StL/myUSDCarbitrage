@@ -15,7 +15,7 @@ def get_db():
     finally:
         db.close()
 
-@router.get("/results/", response_model=List[models.BacktestResult])
+@router.get("/results/", response_model=List[models.BacktestResultPydantic])
 def read_results(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     results = db.query(models.BacktestResult).offset(skip).limit(limit).all()
     return results

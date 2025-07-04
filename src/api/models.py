@@ -1,6 +1,8 @@
 
 from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
 from .database import Base
+from pydantic import BaseModel, ConfigDict
+from datetime import datetime
 
 class USDCData(Base):
     __tablename__ = "usdc_data"
@@ -10,6 +12,14 @@ class USDCData(Base):
     exchange = Column(String, index=True)
     price = Column(Float)
 
+class USDCDataPydantic(BaseModel):
+    id: int
+    timestamp: datetime
+    exchange: str
+    price: float
+
+    model_config = ConfigDict(from_attributes=True)
+
 class Strategy(Base):
     __tablename__ = "strategies"
 
@@ -17,6 +27,14 @@ class Strategy(Base):
     name = Column(String, unique=True, index=True)
     description = Column(String)
     parameters = Column(JSON)
+
+class StrategyPydantic(BaseModel):
+    id: int
+    name: str
+    description: str
+    parameters: dict
+
+    model_config = ConfigDict(from_attributes=True)
 
 class BacktestResult(Base):
     __tablename__ = "backtest_results"
@@ -26,3 +44,12 @@ class BacktestResult(Base):
     start_date = Column(DateTime)
     end_date = Column(DateTime)
     results = Column(JSON)
+
+class BacktestResultPydantic(BaseModel):
+    id: int
+    strategy_id: int
+    start_date: datetime
+    end_date: datetime
+    results: dict
+
+    model_config = ConfigDict(from_attributes=True)
