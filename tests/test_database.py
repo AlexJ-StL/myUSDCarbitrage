@@ -6,7 +6,7 @@ sys.path.insert(
 )
 
 import pytest
-from src.api.database import get_db
+from api.database import get_db
 
 
 def test_database_connection():
