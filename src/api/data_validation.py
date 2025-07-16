@@ -2,15 +2,14 @@
 
 import logging
 from datetime import timedelta
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Tuple, Callable, Optional
 from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import IsolationForest
-from sklearn.preprocessing import StandardScaler
-from scipy import stats
+from sklearn.ensemble import IsolationForest  # type: ignore
+from sklearn.preprocessing import StandardScaler  # type: ignore
 
 from .database import DBConnector
 
@@ -70,7 +69,7 @@ class ValidationRuleEngine:
             "min_data_points": 100,  # Minimum data points for analysis
         }
 
-    def add_rule(self, name: str, func: callable, enabled: bool = True) -> None:
+    def add_rule(self, name: str, func: Callable, enabled: bool = True) -> None:
         """Add a custom validation rule."""
         self.rules[name] = {"function": func, "enabled": enabled}
 
@@ -95,21 +94,21 @@ class AdvancedDataValidator:
         """Initialize advanced data validator."""
         self.db = DBConnector(connection_string)
         self.rule_engine = ValidationRuleEngine()
-        self.isolation_forest = None
+        self.isolation_forest: Optional[IsolationForest] = None
         self.scaler = StandardScaler()
         self._setup_default_rules()
 
     def calculate_data_quality_score(
         self, validation_results: List[ValidationResult]
     ) -> DataQualityScore:
-        """Calculate comprehensive data quality score based on validation results."""
+        """Calculate comprehensive data quality score."""
         # Initialize scores
         integrity_score = 1.0
         completeness_score = 1.0
         consistency_score = 1.0
         anomaly_score = 1.0
 
-        # Weight factors for different validation aspects
+        # Weight factors for validation aspects
         weights = {
             "price_integrity": 0.3,
             "time_continuity": 0.2,
@@ -414,11 +413,11 @@ class AdvancedDataValidator:
         # IQR method for additional validation
         for col in ["open", "high", "low", "close"]:
             if col in df.columns:
-                Q1 = df[col].quantile(0.25)
-                Q3 = df[col].quantile(0.75)
-                IQR = Q3 - Q1
-                lower_bound = Q1 - 1.5 * IQR
-                upper_bound = Q3 + 1.5 * IQR
+                q1 = df[col].quantile(0.25)
+                q3 = df[col].quantile(0.75)
+                iqr = q3 - q1
+                lower_bound = q1 - 1.5 * iqr
+                upper_bound = q3 + 1.5 * iqr
 
                 iqr_outliers = df[
                     (df[col] < lower_bound) | (df[col] > upper_bound)
@@ -508,15 +507,16 @@ class AdvancedDataValidator:
             return ValidationResult(
                 rule_name="ml_anomalies",
                 severity=ValidationSeverity.INFO,
-                message=f"Insufficient data for ML anomaly detection (need {min_points}, got {len(df)})",
+                message=f"Insufficient data for ML detection "
+                f"(need {min_points}, got {len(df)})",
                 affected_rows=[],
                 metadata={},
             )
 
         try:
             # Prepare features for ML model
-            features = []
-            feature_names = []
+            features: List[np.ndarray] = []
+            feature_names: List[str] = []
 
             # Price-based features
             if all(col in df.columns for col in ["open", "high", "low", "close"]):
@@ -524,15 +524,12 @@ class AdvancedDataValidator:
 
                 # Add derived features
                 df_features["price_range"] = df_features["high"] - df_features["low"]
-                df_features["body_size"] = abs(
-                    df_features["close"] - df_features["open"]
-                )
-                df_features["upper_shadow"] = df_features["high"] - df_features[
-                    ["open", "close"]
-                ].max(axis=1)
-                df_features["lower_shadow"] = (
-                    df_features[["open", "close"]].min(axis=1) - df_features["low"]
-                )
+                close_open_diff = df_features["close"] - df_features["open"]
+                df_features["body_size"] = np.abs(close_open_diff)
+                max_vals = df_features[["open", "close"]].max(axis=1)
+                min_vals = df_features[["open", "close"]].min(axis=1)
+                df_features["upper_shadow"] = df_features["high"] - max_vals
+                df_features["lower_shadow"] = min_vals - df_features["low"]
 
                 if "volume" in df.columns:
                     df_features["volume"] = np.log(df["volume"] + 1e-6)
@@ -543,21 +540,25 @@ class AdvancedDataValidator:
                 # Add rolling statistics
                 for window in [5, 10]:
                     if len(df) > window:
-                        df_features[f"close_ma_{window}"] = (
-                            df_features["close"].rolling(window).mean()
-                        )
-                        df_features[f"volume_ma_{window}"] = (
-                            df_features.get("volume", pd.Series(0, index=df.index))
-                            .rolling(window)
-                            .mean()
-                        )
+                        close_series = pd.Series(df_features["close"], index=df.index)
+                        df_features[f"close_ma_{window}"] = close_series.rolling(
+                            window
+                        ).mean()
+                        if "volume" in df_features.columns:
+                            volume_series = pd.Series(
+                                df_features["volume"], index=df.index
+                            )
+                            df_features[f"volume_ma_{window}"] = volume_series.rolling(
+                                window
+                            ).mean()
 
                 # Remove NaN values
-                df_features = df_features.fillna(method="bfill").fillna(method="ffill")
-                features = df_features.values
+                df_features = df_features.fillna(method="bfill")
+                df_features = df_features.fillna(method="ffill")
+                features = [df_features.values]
                 feature_names = df_features.columns.tolist()
 
-            if len(features) == 0:
+            if not features or len(features[0]) == 0:
                 return ValidationResult(
                     rule_name="ml_anomalies",
                     severity=ValidationSeverity.WARNING,
@@ -567,14 +568,17 @@ class AdvancedDataValidator:
                 )
 
             # Scale features
-            features_scaled = self.scaler.fit_transform(features)
+            features_array = np.vstack(features)
+            features_scaled = self.scaler.fit_transform(features_array)
 
             # Initialize and fit Isolation Forest
             contamination = self.rule_engine.get_threshold(
                 "isolation_forest_contamination"
             )
             self.isolation_forest = IsolationForest(
-                contamination=contamination, random_state=42, n_estimators=100
+                contamination=contamination,
+                random_state=42,
+                n_estimators=100,
             )
 
             # Predict anomalies
@@ -608,7 +612,7 @@ class AdvancedDataValidator:
                 },
             )
 
-        except Exception as e:
+        except (ValueError, RuntimeError) as e:
             logger.error("Error in ML anomaly detection: %s", e)
             return ValidationResult(
                 rule_name="ml_anomalies",
