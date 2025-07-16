@@ -1,10 +1,17 @@
+"""Data models for the USDC arbitrage application."""
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
-from .database import Base
-from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+from typing import Dict, Any
+
+from pydantic import BaseModel, ConfigDict
+from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
+
+from .database import Base
+
 
 class USDCData(Base):
+    """SQLAlchemy model for USDC price data."""
+
     __tablename__ = "usdc_data"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -12,7 +19,10 @@ class USDCData(Base):
     exchange = Column(String, index=True)
     price = Column(Float)
 
+
 class USDCDataPydantic(BaseModel):
+    """Pydantic model for USDC data API responses."""
+
     id: int
     timestamp: datetime
     exchange: str
@@ -20,7 +30,10 @@ class USDCDataPydantic(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class Strategy(Base):
+    """SQLAlchemy model for trading strategies."""
+
     __tablename__ = "strategies"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -28,15 +41,21 @@ class Strategy(Base):
     description = Column(String)
     parameters = Column(JSON)
 
+
 class StrategyPydantic(BaseModel):
+    """Pydantic model for strategy API responses."""
+
     id: int
     name: str
     description: str
-    parameters: dict
+    parameters: Dict[str, Any]
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class BacktestResult(Base):
+    """SQLAlchemy model for backtest results."""
+
     __tablename__ = "backtest_results"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -45,11 +64,14 @@ class BacktestResult(Base):
     end_date = Column(DateTime)
     results = Column(JSON)
 
+
 class BacktestResultPydantic(BaseModel):
+    """Pydantic model for backtest result API responses."""
+
     id: int
     strategy_id: int
     start_date: datetime
     end_date: datetime
-    results: dict
+    results: Dict[str, Any]
 
     model_config = ConfigDict(from_attributes=True)

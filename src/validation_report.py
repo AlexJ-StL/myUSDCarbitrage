@@ -1,13 +1,15 @@
-from api.data_validation import DataValidator
+"""Generate data validation reports for USDC arbitrage application."""
+
 import pandas as pd
+from api.data_validation import DataValidator
 
 
 def generate_validation_report():
+    """Generate comprehensive data validation report for all exchanges and timeframes."""
     connection_string = (
         "postgresql://arb_user:strongpassword@localhost:5432/usdc_arbitrage"
     )
     validator = DataValidator(connection_string)
-    validator.validate_data("exchange_name", "symbol_name", "timeframe_value")
     log_entries = []
 
     exchanges = ["coinbase", "kraken", "binance"]
