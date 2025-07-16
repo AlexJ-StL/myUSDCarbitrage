@@ -1,5 +1,7 @@
 """Simple arbitrage strategy implementation."""
 
+from typing import Any
+
 import pandas as pd
 
 
@@ -8,7 +10,7 @@ def strategy_simple_arb(
     buy_threshold: float,
     sell_threshold: float,
     initial_capital: float,
-):
+) -> dict[str, Any]:
     """
     Execute a simple arbitrage strategy based on price thresholds.
 

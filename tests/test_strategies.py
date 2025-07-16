@@ -1,19 +1,12 @@
 """Tests for strategy functionality."""
 
-import os
-import sys
-
 import pandas as pd
 import pytest
-
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
-)
 
 from strategies.simple_arb import strategy_simple_arb
 
 
-def test_strategy_simple_arb_valid():
+def test_strategy_simple_arb_valid() -> None:
     """Test simple arbitrage strategy with valid data."""
     # Create test DataFrame
     df = pd.DataFrame(
@@ -31,7 +24,7 @@ def test_strategy_simple_arb_valid():
     assert len(result["trades"]) > 0  # Expected trades
 
 
-def test_strategy_simple_arb_no_opportunities():
+def test_strategy_simple_arb_no_opportunities() -> None:
     """Test simple arbitrage strategy with no trading opportunities."""
     # Create test DataFrame without opportunities
     df = pd.DataFrame(
@@ -46,7 +39,7 @@ def test_strategy_simple_arb_no_opportunities():
     assert len(result["trades"]) == 0  # No trades should occur
 
 
-def test_simple_arb_strategy_invalid_data():
+def test_simple_arb_strategy_invalid_data() -> None:
     """Test simple arbitrage strategy with invalid data type."""
     # Edge case: invalid data type
     with pytest.raises(AttributeError):
