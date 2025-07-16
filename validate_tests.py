@@ -7,10 +7,10 @@ import os
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-try:
-    import pandas as pd
-    from strategies.simple_arb import strategy_simple_arb
+import pandas as pd  # type: ignore
+from strategies.simple_arb import strategy_simple_arb
 
+try:
     # Test basic functionality
     df = pd.DataFrame(
         {
@@ -29,7 +29,7 @@ try:
     print(f"✓ Trades count: {len(result['trades'])}")
     print("✓ All tests should pass")
 
-except Exception as e:
+except (ImportError, AttributeError, KeyError, ValueError, TypeError) as e:
     print(f"✗ Error: {e}")
     import traceback
 

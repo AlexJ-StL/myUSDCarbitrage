@@ -29,7 +29,7 @@ def strategy_simple_arb(
     portfolio = [{"date": df.iloc[0]["timestamp"], "value": float(cash)}]
 
     for _, row in df.iterrows():
-        price = row["close"]
+        price = float(row["close"])
 
         if price <= buy_threshold and cash > 0:
             position = cash / price

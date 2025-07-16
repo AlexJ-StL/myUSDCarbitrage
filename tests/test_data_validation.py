@@ -3,12 +3,14 @@
 import sys
 import os
 from unittest.mock import patch
+from typing import Any
 import pandas as pd
-from api.data_validation import DataValidator
 
 sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
 )
+
+from api.data_validation import DataValidator, AdvancedDataValidator
 
 
 @patch("api.data_validation.DBConnector")
