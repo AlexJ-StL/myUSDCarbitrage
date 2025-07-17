@@ -1,10 +1,21 @@
 """Data models for the USDC arbitrage application."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict
-from sqlalchemy import JSON, Column, DateTime, Float, Integer, String
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import relationship
 
 from .database import Base
 
@@ -40,6 +51,37 @@ class Strategy(Base):
     name = Column(String, unique=True, index=True)
     description = Column(String)
     parameters = Column(JSON)
+    code = Column(Text)
+    version = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    is_active = Column(Boolean, default=True)
+    strategy_type = Column(
+        String, default="custom"
+    )  # custom, arbitrage, trend_following, etc.
+
+    # Relationships
+    backtests = relationship("BacktestResult", back_populates="strategy")
+    tags = relationship(
+        "StrategyTag",
+        secondary="strategy_tag_associations",
+        back_populates="strategies",
+    )
+    versions = relationship("StrategyVersion", back_populates="strategy")
+
+    def get_strategy_function(self):
+        """Get the strategy function from the code."""
+        try:
+            # Create a local namespace
+            namespace = {}
+
+            # Execute the strategy code in the namespace
+            exec(self.code, globals(), namespace)
+
+            # Return the strategy function
+            return namespace.get("strategy")
+        except Exception as e:
+            raise ValueError(f"Failed to load strategy function: {e}")
 
 
 class StrategyPydantic(BaseModel):
@@ -48,9 +90,32 @@ class StrategyPydantic(BaseModel):
     id: int
     name: str
     description: str
-    parameters: dict[str, Any]
+    parameters: Dict[str, Any]
+    version: int
+    created_at: datetime
+    updated_at: datetime
+    is_active: bool
+    code: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class StrategyVersion(Base):
+    """SQLAlchemy model for strategy versions."""
+
+    __tablename__ = "strategy_versions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"))
+    version = Column(Integer)
+    code = Column(Text)
+    parameters = Column(JSON)
+    created_at = Column(DateTime, default=datetime.now)
+    created_by = Column(String)
+    commit_message = Column(String)
+
+    # Relationships
+    strategy = relationship("Strategy", back_populates="versions")
 
 
 class BacktestResult(Base):
@@ -59,10 +124,19 @@ class BacktestResult(Base):
     __tablename__ = "backtest_results"
 
     id = Column(Integer, primary_key=True, index=True)
-    strategy_id = Column(Integer)
+    strategy_id = Column(Integer, ForeignKey("strategies.id"))
     start_date = Column(DateTime)
     end_date = Column(DateTime)
+    parameters = Column(JSON)
     results = Column(JSON)
+    metrics = Column(JSON)
+    status = Column(String, default="pending")  # pending, running, completed, failed
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    completed_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    strategy = relationship("Strategy", back_populates="backtests")
 
 
 class BacktestResultPydantic(BaseModel):
@@ -72,6 +146,219 @@ class BacktestResultPydantic(BaseModel):
     strategy_id: int
     start_date: datetime
     end_date: datetime
-    results: dict[str, Any]
+    parameters: Dict[str, Any]
+    results: Optional[Dict[str, Any]] = None
+    metrics: Optional[Dict[str, Any]] = None
+    status: str
+    error_message: Optional[str] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class Position(BaseModel):
+    """Pydantic model for position data."""
+
+    exchange: str
+    symbol: str
+    amount: float
+    entry_price: float
+    entry_time: datetime
+    current_price: float
+    unrealized_pnl: float
+    realized_pnl: float
+    fees_paid: float
+
+
+class Order(BaseModel):
+    """Pydantic model for order data."""
+
+    exchange: str
+    symbol: str
+    order_type: str
+    side: str
+    amount: float
+    price: Optional[float] = None
+    stop_price: Optional[float] = None
+    timestamp: datetime
+    executed_price: Optional[float] = None
+    executed_amount: float = 0.0
+    fee: float = 0.0
+    status: str = "open"
+    execution_time: Optional[datetime] = None
+    slippage: float = 0.0
+
+
+class Transaction(BaseModel):
+    """Pydantic model for transaction data."""
+
+    exchange: str
+    symbol: str
+    side: str
+    amount: float
+    price: float
+    fee: float
+    timestamp: datetime
+    value: float
+
+
+class PortfolioSnapshot(BaseModel):
+    """Pydantic model for portfolio snapshot."""
+
+    timestamp: datetime
+    cash: float
+    positions: Dict[str, Position]
+    equity: float
+
+
+class BacktestMetrics(BaseModel):
+    """Pydantic model for backtest metrics."""
+
+    total_return: float
+    max_drawdown: float
+    sharpe_ratio: float
+    sortino_ratio: float
+    cagr: float
+    win_rate: float
+    final_equity: float
+    initial_equity: float
+    trade_count: int
+    annual_volatility: float
+
+
+class BacktestRequest(BaseModel):
+    """Pydantic model for backtest request."""
+
+    strategy_id: int = Field(..., description="Strategy ID to backtest")
+    start_date: datetime = Field(..., description="Start date for backtest")
+    end_date: datetime = Field(..., description="End date for backtest")
+    exchanges: List[str] = Field(
+        default=["coinbase", "kraken", "binance"],
+        description="Exchanges to include in backtest",
+    )
+    symbols: List[str] = Field(
+        default=["USDC/USD"],
+        description="Symbols to include in backtest",
+    )
+    timeframe: str = Field(
+        default="1h",
+        description="Timeframe for backtest (e.g., 1m, 5m, 1h, 1d)",
+    )
+    initial_balance: float = Field(
+        default=10000.0,
+        description="Initial portfolio balance",
+        gt=0,
+    )
+    position_sizing: str = Field(
+        default="percent",
+        description="Position sizing strategy (fixed, percent, kelly, volatility, risk_parity)",
+    )
+    position_size: float = Field(
+        default=0.02,
+        description="Position size (interpretation depends on position_sizing)",
+        gt=0,
+    )
+    rebalance_frequency: str = Field(
+        default="monthly",
+        description="Portfolio rebalancing frequency (daily, weekly, monthly, quarterly, threshold)",
+    )
+    rebalance_threshold: float = Field(
+        default=0.05,
+        description="Threshold for threshold-based rebalancing",
+        gt=0,
+    )
+    include_fees: bool = Field(
+        default=True,
+        description="Include exchange fees in backtest",
+    )
+    include_slippage: bool = Field(
+        default=True,
+        description="Include slippage in backtest",
+    )
+    strategy_params: Dict[str, Any] = Field(
+        default={},
+        description="Additional strategy parameters",
+    )
+
+
+class BacktestResponse(BaseModel):
+    """Pydantic model for backtest response."""
+
+    backtest_id: int
+    strategy_id: int
+    start_date: datetime
+    end_date: datetime
+    status: str
+    metrics: Optional[Dict[str, Any]] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+
+
+class StrategyTag(Base):
+    """SQLAlchemy model for strategy tags."""
+
+    __tablename__ = "strategy_tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+    # Relationships
+    strategies = relationship(
+        "Strategy", secondary="strategy_tag_associations", back_populates="tags"
+    )
+
+
+class StrategyTagAssociation(Base):
+    """SQLAlchemy model for strategy-tag associations."""
+
+    __tablename__ = "strategy_tag_associations"
+
+    strategy_id = Column(Integer, ForeignKey("strategies.id"), primary_key=True)
+    tag_id = Column(Integer, ForeignKey("strategy_tags.id"), primary_key=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class StrategyComparison(Base):
+    """SQLAlchemy model for strategy comparisons."""
+
+    __tablename__ = "strategy_comparisons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    strategy_ids = Column(JSON)  # List of strategy IDs
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+    parameters = Column(JSON)
+    results = Column(JSON)
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class ABTest(Base):
+    """SQLAlchemy model for A/B tests between strategies."""
+
+    __tablename__ = "ab_tests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    description = Column(String)
+    strategy_a_id = Column(Integer, ForeignKey("strategies.id"))
+    strategy_b_id = Column(Integer, ForeignKey("strategies.id"))
+    allocation_ratio = Column(Float, default=0.5)  # Allocation for strategy A
+    start_date = Column(DateTime)
+    end_date = Column(DateTime, nullable=True)
+    exchanges = Column(JSON)  # List of exchanges
+    symbols = Column(JSON)  # List of symbols
+    status = Column(String, default="created")  # created, running, completed, failed
+    results = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    error_message = Column(String, nullable=True)
+
+    # Relationships
+    strategy_a = relationship("Strategy", foreign_keys=[strategy_a_id])
+    strategy_b = relationship("Strategy", foreign_keys=[strategy_b_id])
