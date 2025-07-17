@@ -1,103 +1,171 @@
+"""USDC data downloader with enhanced retry logic and data validation."""
+
+import argparse
 import logging
-import time
+import sys
 from datetime import UTC, datetime, timedelta
 
-import ccxt
-
-from api.data_validation import DataValidator
-from api.database import Database
+from api.data_downloader import EnhancedDataDownloader
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("data_downloader.log"),
+        logging.StreamHandler(sys.stdout),
+    ],
+)
 logger = logging.getLogger(__name__)
 
-# Initialize database
-DB = Database()
 
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Download USDC price data")
 
-def fetch_ohlcv(exchange, symbol, timeframe, since, until, sleep_time=1):
-    all_ohlcv = []
-    current_since = since
-    # Get timeframe duration in milliseconds
-    timeframe_duration = exchange.timeframes[timeframe] * 1000
+    parser.add_argument(
+        "--exchanges",
+        type=str,
+        default="coinbase,kraken,binance",
+        help="Comma-separated list of exchanges (default: coinbase,kraken,binance)",
+    )
 
-    while current_since < until:
-        logger.info(
-            f"Fetching from {datetime.fromtimestamp(current_since/1000, UTC)}"
-        )
-        try:
-            ohlcv = exchange.fetch_ohlcv(symbol, timeframe, current_since, limit=1000)
-            if not ohlcv:
-                break
-            all_ohlcv.extend(ohlcv)
-            current_since = ohlcv[-1][0] + timeframe_duration
-            time.sleep(sleep_time)
-            if ohlcv[-1][0] >= until:
-                break
-        except Exception as e:
-            logger.error(f"An error occurred: {e}")
-            time.sleep(sleep_time)
+    parser.add_argument(
+        "--symbol",
+        type=str,
+        default="USDC/USD",
+        help="Trading pair symbol (default: USDC/USD)",
+    )
 
-    return all_ohlcv
+    parser.add_argument(
+        "--timeframe",
+        type=str,
+        default="1h",
+        help="Timeframe (e.g., 1m, 5m, 1h, 1d) (default: 1h)",
+    )
+
+    parser.add_argument(
+        "--days",
+        type=int,
+        default=7,
+        help="Number of days to download (default: 7)",
+    )
+
+    parser.add_argument(
+        "--start-date",
+        type=str,
+        help="Start date in YYYY-MM-DD format (overrides --days)",
+    )
+
+    parser.add_argument(
+        "--end-date",
+        type=str,
+        default=datetime.now(UTC).strftime("%Y-%m-%d"),
+        help=f"End date in YYYY-MM-DD format (default: today)",
+    )
+
+    parser.add_argument(
+        "--backfill",
+        action="store_true",
+        help="Backfill missing data using other exchanges",
+    )
+
+    parser.add_argument(
+        "--resolve-conflicts",
+        choices=["newer", "older", "average"],
+        default="newer",
+        help="Conflict resolution strategy (default: newer)",
+    )
+
+    parser.add_argument(
+        "--db-connection",
+        type=str,
+        default="postgresql://postgres:postgres@localhost:5432/usdc_arbitrage",
+        help="Database connection string",
+    )
+
+    return parser.parse_args()
 
 
 def main():
-    # Initialize exchanges
-    coinbase = ccxt.coinbase()
-    kraken = ccxt.kraken()
-    binance = ccxt.binance()
+    """Main function to download and store USDC price data."""
+    args = parse_arguments()
 
-    # Define parameters
-    symbol = "USDC/USD"
-    timeframe = "1h"
-    end_date = datetime.now(UTC)
-    start_date = end_date - timedelta(days=1)
+    # Parse exchanges
+    exchanges = [exchange.strip() for exchange in args.exchanges.split(",")]
 
-    # Fetch data
-    coinbase_data = fetch_ohlcv(
-        coinbase,
-        symbol,
-        timeframe,
-        int(start_date.timestamp() * 1000),
-        int(end_date.timestamp() * 1000),
-    )
-    kraken_data = fetch_ohlcv(
-        kraken,
-        symbol,
-        timeframe,
-        int(start_date.timestamp() * 1000),
-        int(end_date.timestamp() * 1000),
-    )
-    binance_data = fetch_ohlcv(
-        binance,
-        symbol,
-        timeframe,
-        int(start_date.timestamp() * 1000),
-        int(end_date.timestamp() * 1000),
+    # Parse dates
+    end_date = datetime.strptime(args.end_date, "%Y-%m-%d").replace(tzinfo=UTC)
+
+    if args.start_date:
+        start_date = datetime.strptime(args.start_date, "%Y-%m-%d").replace(tzinfo=UTC)
+    else:
+        start_date = end_date - timedelta(days=args.days)
+
+    logger.info(f"Downloading data for {args.symbol} from {start_date} to {end_date}")
+    logger.info(f"Exchanges: {exchanges}")
+    logger.info(f"Timeframe: {args.timeframe}")
+
+    # Initialize downloader
+    downloader = EnhancedDataDownloader(args.db_connection)
+
+    # Download and store data
+    results = downloader.download_and_store_data(
+        exchanges, args.symbol, args.timeframe, start_date, end_date
     )
 
-    # Validate data
-    validator = DataValidator(connection_string="connection_string")
-    coinbase_validation = validator.validate_data("coinbase", symbol, timeframe)
-    kraken_validation = validator.validate_data("kraken", symbol, timeframe)
-    binance_validation = validator.validate_data("binance", symbol, timeframe)
+    # Resolve conflicts if requested
+    if args.resolve_conflicts:
+        for exchange in exchanges:
+            resolved = downloader.resolve_conflicts(
+                exchange, args.symbol, args.timeframe, args.resolve_conflicts
+            )
+            logger.info(f"Resolved {resolved} conflicts for {exchange}")
 
-    # Check for critical errors
-    if (
-        coinbase_validation["price_errors"]
-        or kraken_validation["price_errors"]
-        or binance_validation["price_errors"]
-    ):
-        logger.error("Critical data issues detected")
-        return
+    # Backfill missing data if requested
+    if args.backfill and len(exchanges) > 1:
+        primary_exchange = exchanges[0]
+        fallback_exchanges = exchanges[1:]
 
-    # Insert data into database
-    logger.info(f"Inserting {len(coinbase_data)} records into database...")
-    DB.insert_data("coinbase", symbol, timeframe, coinbase_data)
-    logger.info(f"Inserting {len(kraken_data)} records into database...")
-    DB.insert_data("kraken", symbol, timeframe, kraken_data)
-    logger.info(f"Inserting {len(binance_data)} records into database...")
-    DB.insert_data("binance", symbol, timeframe, binance_data)
+        logger.info(
+            f"Backfilling missing data for {primary_exchange} using {fallback_exchanges}"
+        )
+
+        backfill_results = downloader.backfill_missing_data(
+            primary_exchange,
+            fallback_exchanges,
+            args.symbol,
+            args.timeframe,
+            start_date,
+            end_date,
+        )
+
+        logger.info(f"Backfill results: {backfill_results}")
+
+    # Log results
+    logger.info(f"Download results: {results}")
+
+    # Print summary
+    print("\nDownload Summary:")
+    print("=" * 50)
+    for exchange, result in results.items():
+        status = result.get("status", "unknown")
+        records = result.get("records", 0)
+
+        if status == "success":
+            print(f"{exchange}: Successfully downloaded {records} records")
+        elif status == "no_data":
+            print(f"{exchange}: No new data available")
+        elif status == "validation_failed":
+            issues = result.get("issues", [])
+            print(f"{exchange}: Validation failed - {', '.join(issues)}")
+        elif status == "error":
+            error = result.get("error", "Unknown error")
+            print(f"{exchange}: Error - {error}")
+        else:
+            print(f"{exchange}: {status}")
+
+    print("=" * 50)
 
 
 if __name__ == "__main__":
