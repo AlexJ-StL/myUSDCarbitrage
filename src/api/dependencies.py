@@ -1,6 +1,7 @@
+from fastapi import Depends, HTTPException, status
+
 from .database import DBConnector
 from .security import get_current_user
-from fastapi import Depends, HTTPException, status
 
 
 def get_database():

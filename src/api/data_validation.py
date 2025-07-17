@@ -1,19 +1,20 @@
 """Advanced data validation framework for USDC arbitrage application."""
 
-import logging
 import json
-from datetime import timedelta
-from typing import List, Dict, Any, Tuple, Callable, Optional, Union, Set
-from dataclasses import dataclass, field, asdict
-from enum import Enum
+import logging
 import os
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, field
+from datetime import timedelta
+from enum import Enum
+from typing import Any
 
+import joblib
 import numpy as np
 import pandas as pd
+from sklearn.cluster import DBSCAN  # type: ignore
 from sklearn.ensemble import IsolationForest  # type: ignore
 from sklearn.preprocessing import StandardScaler  # type: ignore
-from sklearn.cluster import DBSCAN  # type: ignore
-import joblib
 
 from .database import DBConnector
 
@@ -42,10 +43,10 @@ class ValidationResult:
     rule_name: str
     severity: ValidationSeverity
     message: str
-    affected_rows: List[int]
-    metadata: Dict[str, Any]
+    affected_rows: list[int]
+    metadata: dict[str, Any]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert validation result to dictionary."""
         result = asdict(self)
         result["severity"] = self.severity.value
@@ -61,9 +62,9 @@ class DataQualityScore:
     completeness_score: float
     consistency_score: float
     anomaly_score: float
-    details: Dict[str, Any]
+    details: dict[str, Any]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert quality score to dictionary."""
         return asdict(self)
 
@@ -77,7 +78,7 @@ class ValidationRule:
     enabled: bool = True
     description: str = ""
     category: str = "general"
-    severity_threshold: Dict[str, float] = field(default_factory=dict)
+    severity_threshold: dict[str, float] = field(default_factory=dict)
 
 
 class ValidationRuleEngine:
@@ -85,8 +86,8 @@ class ValidationRuleEngine:
 
     def __init__(self):
         """Initialize validation rule engine."""
-        self.rules: Dict[str, ValidationRule] = {}
-        self.thresholds: Dict[str, float] = {
+        self.rules: dict[str, ValidationRule] = {}
+        self.thresholds: dict[str, float] = {
             "outlier_zscore": 3.0,
             "volume_anomaly_zscore": 3.0,
             "price_change_threshold": 0.1,  # 10% price change threshold
@@ -101,7 +102,7 @@ class ValidationRuleEngine:
             "max_price_deviation": 0.2,  # Maximum allowed price deviation (20%)
             "min_quality_score": 0.7,  # Minimum acceptable quality score
         }
-        self.rule_categories: Set[str] = {
+        self.rule_categories: set[str] = {
             "integrity",
             "completeness",
             "consistency",
@@ -140,14 +141,14 @@ class ValidationRuleEngine:
         if name in self.rules:
             self.rules[name].enabled = enabled
 
-    def get_rules_by_category(self, category: str) -> List[ValidationRule]:
+    def get_rules_by_category(self, category: str) -> list[ValidationRule]:
         """Get all rules in a specific category."""
         return [rule for rule in self.rules.values() if rule.category == category]
 
     def load_config(self, config_path: str) -> None:
         """Load rule engine configuration from JSON file."""
         try:
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config = json.load(f)
 
             # Load thresholds
@@ -203,7 +204,7 @@ class AdvancedDataValidator:
         """Initialize advanced data validator."""
         self.db = DBConnector(connection_string)
         self.rule_engine = ValidationRuleEngine()
-        self.isolation_forest: Optional[IsolationForest] = None
+        self.isolation_forest: IsolationForest | None = None
         self.scaler = StandardScaler()
         self._setup_default_rules()
 
@@ -215,7 +216,7 @@ class AdvancedDataValidator:
             self.rule_engine.load_config(config_path)
 
     def calculate_data_quality_score(
-        self, validation_results: List[ValidationResult]
+        self, validation_results: list[ValidationResult]
     ) -> DataQualityScore:
         """Calculate comprehensive data quality score."""
         # Initialize scores
@@ -313,7 +314,7 @@ class AdvancedDataValidator:
 
     def comprehensive_validation(
         self, exchange: str, symbol: str, timeframe: str
-    ) -> Tuple[List[ValidationResult], DataQualityScore]:
+    ) -> tuple[list[ValidationResult], DataQualityScore]:
         """Run comprehensive validation and return results with quality score."""
         logger.info(
             "Running comprehensive validation for %s/%s/%s", exchange, symbol, timeframe
@@ -423,7 +424,7 @@ class AdvancedDataValidator:
         symbol: str,
         timeframe: str,
         quality_score: DataQualityScore,
-        validation_results: List[ValidationResult],
+        validation_results: list[ValidationResult],
     ) -> None:
         """Flag data for manual review."""
         try:
@@ -525,7 +526,7 @@ class AdvancedDataValidator:
         """Set threshold for validation rules."""
         self.rule_engine.set_threshold(name, value)
 
-    def save_configuration(self, config_path: Optional[str] = None) -> None:
+    def save_configuration(self, config_path: str | None = None) -> None:
         """Save current configuration to file."""
         if config_path is None:
             config_path = os.path.join(
@@ -533,7 +534,7 @@ class AdvancedDataValidator:
             )
         self.rule_engine.save_config(config_path)
 
-    def load_configuration(self, config_path: Optional[str] = None) -> None:
+    def load_configuration(self, config_path: str | None = None) -> None:
         """Load configuration from file."""
         if config_path is None:
             config_path = os.path.join(
@@ -541,7 +542,7 @@ class AdvancedDataValidator:
             )
         self.rule_engine.load_config(config_path)
 
-    def save_ml_model(self, model_path: Optional[str] = None) -> None:
+    def save_ml_model(self, model_path: str | None = None) -> None:
         """Save trained ML model to file."""
         if self.isolation_forest is None:
             logger.warning("No ML model to save")
@@ -561,7 +562,7 @@ class AdvancedDataValidator:
         except Exception as e:
             logger.error(f"Failed to save ML model: {e}")
 
-    def load_ml_model(self, model_path: Optional[str] = None) -> None:
+    def load_ml_model(self, model_path: str | None = None) -> None:
         """Load trained ML model from file."""
         if model_path is None:
             model_path = os.path.join(
@@ -617,13 +618,11 @@ class AdvancedDataValidator:
         # Determine severity based on violation types and counts
         if any(
             v in ["negative_prices", "high_low"]
-            for v in violations.keys()
+            for v in violations
             if violations[v].any()
-        ):
+        ) or nan_mask.any() or inf_mask.any():
             severity = ValidationSeverity.CRITICAL
-        elif nan_mask.any() or inf_mask.any():
-            severity = ValidationSeverity.CRITICAL
-        elif any(violations[v].any() for v in violations.keys()):
+        elif any(violations[v].any() for v in violations):
             severity = ValidationSeverity.ERROR
         else:
             severity = ValidationSeverity.INFO
@@ -961,8 +960,8 @@ class AdvancedDataValidator:
 
         try:
             # Prepare features for ML model
-            features: List[np.ndarray] = []
-            feature_names: List[str] = []
+            features: list[np.ndarray] = []
+            feature_names: list[str] = []
 
             # Price-based features
             if all(col in df.columns for col in ["open", "high", "low", "close"]):
@@ -1345,13 +1344,9 @@ class AdvancedDataValidator:
             issues.append("Increasing volume volatility")
 
         # Determine severity based on findings
-        if negative_volume:
+        if negative_volume or nan_volume:
             severity = ValidationSeverity.ERROR
-        elif nan_volume:
-            severity = ValidationSeverity.ERROR
-        elif zero_volume and not self.rule_engine.get_threshold("zero_volume_allowed"):
-            severity = ValidationSeverity.WARNING
-        elif declining_volume and increasing_volatility:
+        elif zero_volume and not self.rule_engine.get_threshold("zero_volume_allowed") or declining_volume and increasing_volatility:
             severity = ValidationSeverity.WARNING
         elif declining_volume or increasing_volatility:
             severity = ValidationSeverity.INFO
@@ -1390,7 +1385,7 @@ class AdvancedDataValidator:
             metadata={},
         )
 
-    def check_price_integrity(self, df: pd.DataFrame) -> List[str]:
+    def check_price_integrity(self, df: pd.DataFrame) -> list[str]:
         """Validate OHLC price relationships and detect integrity violations."""
         errors = []
         mask_high_low = df["high"] < df["low"]
@@ -1416,7 +1411,7 @@ class AdvancedDataValidator:
 
         return errors
 
-    def check_time_continuity(self, df: pd.DataFrame, timeframe: str) -> List[tuple]:
+    def check_time_continuity(self, df: pd.DataFrame, timeframe: str) -> list[tuple]:
         """Check for gaps in time series data."""
         df_sorted = df.sort_values("timestamp")
         time_diffs = df_sorted["timestamp"].diff().dropna()
@@ -1442,7 +1437,7 @@ class AdvancedDataValidator:
 
         return gap_details if not gaps.empty else []
 
-    def detect_outliers(self, df: pd.DataFrame, n_sigmas: int = 5) -> List[int]:
+    def detect_outliers(self, df: pd.DataFrame, n_sigmas: int = 5) -> list[int]:
         """Identify statistical outliers using modified Z-score."""
         try:
             median = df["close"].median()
@@ -1458,7 +1453,7 @@ class AdvancedDataValidator:
             logger.error("Error in outlier detection: %s", e)
             return []
 
-    def detect_volume_anomalies(self, df: pd.DataFrame, n_sigmas: int = 5) -> List[int]:
+    def detect_volume_anomalies(self, df: pd.DataFrame, n_sigmas: int = 5) -> list[int]:
         """Detect volume anomalies using log-transformed data."""
         log_volume = np.log(df["volume"] + 1e-6)
         median = log_volume.median()

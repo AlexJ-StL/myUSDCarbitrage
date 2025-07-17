@@ -1,9 +1,10 @@
 
-from fastapi import APIRouter, Depends, HTTPException
+
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
 from .. import models
 from ..database import SessionLocal
-from typing import List
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ def create_strategy(strategy: models.StrategyPydantic, db: Session = Depends(get
     db.refresh(db_strategy)
     return db_strategy
 
-@router.get("/strategies/", response_model=List[models.StrategyPydantic])
+@router.get("/strategies/", response_model=list[models.StrategyPydantic])
 def read_strategies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     strategies = db.query(models.Strategy).offset(skip).limit(limit).all()
     return strategies

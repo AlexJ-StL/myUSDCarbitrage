@@ -1,17 +1,17 @@
 """Gap analysis reporting and alerting system for USDC arbitrage application."""
 
-import logging
-import smtplib
 import json
+import logging
 import os
-from datetime import datetime, timedelta
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from typing import Dict, List, Optional, Any, Union, Tuple
+import smtplib
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 import requests
 
-from .gap_detection import GapDetectionSystem, GapAnalysisReport, GapSeverity, GapInfo
+from .gap_detection import GapAnalysisReport, GapDetectionSystem, GapSeverity
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -27,9 +27,9 @@ class AlertConfig:
 
     enabled: bool = True
     min_severity: GapSeverity = GapSeverity.MODERATE
-    email_recipients: List[str] = None
-    slack_webhook: Optional[str] = None
-    teams_webhook: Optional[str] = None
+    email_recipients: list[str] = None
+    slack_webhook: str | None = None
+    teams_webhook: str | None = None
     alert_cooldown: timedelta = timedelta(hours=6)
     include_report: bool = True
     report_format: str = "html"
@@ -40,11 +40,11 @@ class AlertManager:
 
     def __init__(
         self,
-        smtp_server: Optional[str] = None,
+        smtp_server: str | None = None,
         smtp_port: int = 587,
-        smtp_username: Optional[str] = None,
-        smtp_password: Optional[str] = None,
-        sender_email: Optional[str] = None,
+        smtp_username: str | None = None,
+        smtp_password: str | None = None,
+        sender_email: str | None = None,
     ):
         """Initialize alert manager.
 
@@ -62,7 +62,7 @@ class AlertManager:
         self.sender_email = sender_email or os.environ.get(
             "SENDER_EMAIL", "alerts@usdcarbitrage.com"
         )
-        self.last_alert_time: Dict[str, datetime] = {}
+        self.last_alert_time: dict[str, datetime] = {}
 
     def should_send_alert(
         self,
@@ -113,7 +113,7 @@ class AlertManager:
         return True
 
     def send_email_alert(
-        self, recipients: List[str], subject: str, body_html: str, body_text: str
+        self, recipients: list[str], subject: str, body_html: str, body_text: str
     ) -> bool:
         """Send email alert.
 
@@ -159,7 +159,7 @@ class AlertManager:
             return False
 
     def send_slack_alert(
-        self, webhook_url: str, message: str, blocks: List[Dict] = None
+        self, webhook_url: str, message: str, blocks: list[dict] = None
     ) -> bool:
         """Send Slack alert.
 
@@ -255,7 +255,7 @@ class AlertManager:
         report: GapAnalysisReport,
         include_report: bool = True,
         report_format: str = "html",
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """Format alert message for email and other channels.
 
         Args:
@@ -490,7 +490,7 @@ class GapAlertingSystem:
             ).split(",")
 
         # Exchange-specific configurations
-        self.exchange_configs: Dict[str, AlertConfig] = {}
+        self.exchange_configs: dict[str, AlertConfig] = {}
 
     def set_alert_config(self, exchange: str, config: AlertConfig) -> None:
         """Set alert configuration for a specific exchange.
@@ -517,10 +517,10 @@ class GapAlertingSystem:
         exchange: str,
         symbol: str,
         timeframe: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         save_filled_data: bool = True,
-    ) -> Tuple[GapAnalysisReport, bool]:
+    ) -> tuple[GapAnalysisReport, bool]:
         """Analyze gaps and send alerts if necessary.
 
         Args:

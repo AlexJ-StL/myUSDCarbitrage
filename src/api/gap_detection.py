@@ -1,13 +1,12 @@
 """Gap detection and filling system for time series data in USDC arbitrage application."""
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Any, Union
-from dataclasses import dataclass
+from typing import Any
 
 import pandas as pd
-import numpy as np
 from sqlalchemy import create_engine
 
 from .database import DBConnector
@@ -37,9 +36,9 @@ class GapInfo:
     duration: timedelta
     severity: GapSeverity
     filled: bool = False
-    fill_method: Optional[str] = None
-    fill_source: Optional[str] = None
-    fill_quality: Optional[float] = None
+    fill_method: str | None = None
+    fill_source: str | None = None
+    fill_quality: float | None = None
 
 
 @dataclass
@@ -55,14 +54,14 @@ class GapAnalysisReport:
     unfilled_gaps: int
     total_missing_points: int
     data_completeness: float  # Percentage of complete data
-    gaps: List[GapInfo]
-    summary: Dict[str, Any]
+    gaps: list[GapInfo]
+    summary: dict[str, Any]
 
 
 class DataSourcePriority:
     """Priority configuration for data sources used in gap filling."""
 
-    def __init__(self, primary_source: str, fallback_sources: List[Tuple[str, float]]):
+    def __init__(self, primary_source: str, fallback_sources: list[tuple[str, float]]):
         """Initialize data source priority configuration.
 
         Args:
@@ -73,7 +72,7 @@ class DataSourcePriority:
         self.primary_source = primary_source
         self.fallback_sources = fallback_sources
 
-    def get_ordered_sources(self) -> List[str]:
+    def get_ordered_sources(self) -> list[str]:
         """Get ordered list of data sources by priority."""
         sources = [self.primary_source]
         sources.extend(
@@ -158,7 +157,7 @@ class GapDetectionSystem:
             ),
         }
 
-    def detect_gaps(self, df: pd.DataFrame, timeframe: str) -> List[GapInfo]:
+    def detect_gaps(self, df: pd.DataFrame, timeframe: str) -> list[GapInfo]:
         """Detect gaps in time series data.
 
         Args:
@@ -226,8 +225,8 @@ class GapDetectionSystem:
             return GapSeverity.MINOR
 
     def fill_gaps(
-        self, exchange: str, symbol: str, timeframe: str, gaps: List[GapInfo]
-    ) -> Tuple[pd.DataFrame, List[GapInfo]]:
+        self, exchange: str, symbol: str, timeframe: str, gaps: list[GapInfo]
+    ) -> tuple[pd.DataFrame, list[GapInfo]]:
         """Fill gaps in time series data using multiple sources.
 
         Args:
@@ -373,8 +372,8 @@ class GapDetectionSystem:
         exchange: str,
         symbol: str,
         timeframe: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> GapAnalysisReport:
         """Perform comprehensive gap analysis on a dataset.
 
@@ -750,7 +749,7 @@ class GapDetectionSystem:
         self,
         exchange: str,
         primary_source: str,
-        fallback_sources: List[Tuple[str, float]],
+        fallback_sources: list[tuple[str, float]],
     ) -> None:
         """Configure data source priority for gap filling.
 
@@ -768,13 +767,13 @@ class GapDetectionSystem:
         exchange: str,
         symbol: str,
         timeframe: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         save_filled_data: bool = True,
         generate_report: bool = True,
         report_format: str = "html",
-        report_path: Optional[str] = None,
-    ) -> Tuple[GapAnalysisReport, Optional[str]]:
+        report_path: str | None = None,
+    ) -> tuple[GapAnalysisReport, str | None]:
         """Run the complete gap detection and filling workflow.
 
         Args:

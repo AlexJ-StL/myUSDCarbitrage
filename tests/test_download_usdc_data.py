@@ -3,13 +3,10 @@
 import os
 import sys
 
-import pytest
-
 sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
 )
 
-from download_usdc_data import fetch_ohlcv
 
 
 def test_fetch_data_success():

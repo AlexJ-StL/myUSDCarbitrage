@@ -1,9 +1,11 @@
-import ccxt
 import logging
-from datetime import datetime, timezone, timedelta
-from api.database import Database, DBConnector
-from api.data_validation import DataValidator
 import time
+from datetime import UTC, datetime, timedelta
+
+import ccxt
+
+from api.data_validation import DataValidator
+from api.database import Database
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,7 +23,7 @@ def fetch_ohlcv(exchange, symbol, timeframe, since, until, sleep_time=1):
 
     while current_since < until:
         logger.info(
-            f"Fetching from {datetime.fromtimestamp(current_since/1000, timezone.utc)}"
+            f"Fetching from {datetime.fromtimestamp(current_since/1000, UTC)}"
         )
         try:
             ohlcv = exchange.fetch_ohlcv(symbol, timeframe, current_since, limit=1000)
@@ -41,14 +43,14 @@ def fetch_ohlcv(exchange, symbol, timeframe, since, until, sleep_time=1):
 
 def main():
     # Initialize exchanges
-    coinbase = getattr(ccxt, 'coinbase')()
-    kraken = getattr(ccxt, 'kraken')()
-    binance = getattr(ccxt, 'binance')()
+    coinbase = ccxt.coinbase()
+    kraken = ccxt.kraken()
+    binance = ccxt.binance()
 
     # Define parameters
     symbol = "USDC/USD"
     timeframe = "1h"
-    end_date = datetime.now(timezone.utc)
+    end_date = datetime.now(UTC)
     start_date = end_date - timedelta(days=1)
 
     # Fetch data

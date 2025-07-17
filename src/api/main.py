@@ -1,8 +1,9 @@
 """Main FastAPI application for USDC arbitrage backtesting system."""
 
 from fastapi import FastAPI
-from .routers import data, strategies, backtest, results
-from .database import engine, Base
+
+from .database import Base, engine
+from .routers import backtest, data, results, strategies
 
 Base.metadata.create_all(bind=engine)
 

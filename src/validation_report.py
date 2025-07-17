@@ -1,6 +1,7 @@
 """Generate data validation reports for USDC arbitrage application."""
 
 import pandas as pd
+
 from api.data_validation import DataValidator
 
 

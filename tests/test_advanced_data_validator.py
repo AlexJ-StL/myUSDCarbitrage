@@ -2,7 +2,6 @@
 # Copyright (c) 2025 USDC Arbitrage Project
 
 import sys
-from collections.abc import Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -10,7 +9,6 @@ from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
-import pytest
 
 # Constants for tests
 OUTLIER_ZSCORE = 2.0

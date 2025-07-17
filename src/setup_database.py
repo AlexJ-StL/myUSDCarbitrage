@@ -1,6 +1,7 @@
 """Database setup script for USDC arbitrage application."""
 
 import os
+
 import psycopg2
 
 
@@ -19,7 +20,7 @@ def setup_database():
     sql_file_path = os.path.join(
         os.path.dirname(os.path.dirname(__file__)), ".sql", "database_setup.sql"
     )
-    with open(sql_file_path, "r", encoding="utf-8") as f:
+    with open(sql_file_path, encoding="utf-8") as f:
         sql_script = f.read()
 
     # Split the script into individual commands

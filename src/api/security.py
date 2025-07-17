@@ -1,10 +1,11 @@
+import os
+import secrets
+from datetime import datetime, timedelta
+
+from dotenv import load_dotenv
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from datetime import datetime, timedelta
-import secrets
-import os
-from dotenv import load_dotenv
 from passlib.context import CryptContext
 
 # Load environment variables

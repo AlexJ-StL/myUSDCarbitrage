@@ -1,6 +1,5 @@
 """Data router for USDC arbitrage API."""
 
-from typing import List
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -11,7 +10,7 @@ from ..database import get_db
 router = APIRouter()
 
 
-@router.get("/data/", response_model=List[models.USDCDataPydantic])
+@router.get("/data/", response_model=list[models.USDCDataPydantic])
 def read_usdc_data(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """Retrieve USDC data with pagination."""
     usdc_data = db.query(models.USDCData).offset(skip).limit(limit).all()

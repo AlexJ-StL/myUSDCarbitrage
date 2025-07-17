@@ -1,10 +1,10 @@
 """Data models for the USDC arbitrage application."""
 
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
+from sqlalchemy import JSON, Column, DateTime, Float, Integer, String
 
 from .database import Base
 
@@ -48,7 +48,7 @@ class StrategyPydantic(BaseModel):
     id: int
     name: str
     description: str
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -72,6 +72,6 @@ class BacktestResultPydantic(BaseModel):
     strategy_id: int
     start_date: datetime
     end_date: datetime
-    results: Dict[str, Any]
+    results: dict[str, Any]
 
     model_config = ConfigDict(from_attributes=True)

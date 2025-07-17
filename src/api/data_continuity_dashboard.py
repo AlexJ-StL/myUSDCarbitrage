@@ -2,18 +2,14 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-import json
-import os
 
-import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import dash
+import plotly.graph_objects as go
 from dash import dcc, html
 from dash.dependencies import Input, Output
+from plotly.subplots import make_subplots
 
-from .gap_detection import GapDetectionSystem, GapAnalysisReport, GapSeverity
+from .gap_detection import GapAnalysisReport, GapDetectionSystem, GapSeverity
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

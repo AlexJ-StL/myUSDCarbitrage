@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Simple script to validate that the tests can run."""
 
-import sys
 import os
+import sys
+
 import pandas as pd  # type: ignore
 
 # Add src to path

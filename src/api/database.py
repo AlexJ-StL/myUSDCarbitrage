@@ -1,8 +1,8 @@
 """Database configuration and connection management for USDC arbitrage application."""
 
 import os
+from collections.abc import Generator
 from datetime import datetime
-from typing import Generator, List, Optional
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -85,7 +85,7 @@ class DBConnector:
         except Exception as e:
             raise e
 
-    def get_user_roles(self, username: str) -> List[str]:
+    def get_user_roles(self, username: str) -> list[str]:
         """Get user roles for authorization."""
         query = """
         SELECT r.name as role
@@ -111,7 +111,7 @@ class Database:
         self.db = SessionLocal()
 
     def insert_data(
-        self, exchange: str, symbol: str, timeframe: str, data: List
+        self, exchange: str, symbol: str, timeframe: str, data: list
     ) -> None:
         """Insert OHLCV data into database."""
         try:
