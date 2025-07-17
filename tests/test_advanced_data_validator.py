@@ -1,28 +1,32 @@
 """Test module for advanced data validation functionality."""
+# Copyright (c) 2025 USDC Arbitrage Project
 
-import sys
 import os
-from unittest.mock import patch, MagicMock
-import pandas as pd
-import numpy as np
-import pytest
+import sys
 from datetime import datetime, timedelta
+from typing import Any
+from unittest.mock import MagicMock, patch
 
+import numpy as np
+import pandas as pd
+import pytest
+
+# Add src directory to Python path for imports
 sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
 )
 
 from api.data_validation import (
     AdvancedDataValidator,
-    ValidationResult,
-    ValidationSeverity,
     DataQualityScore,
+    ValidationResult,
     ValidationRuleEngine,
+    ValidationSeverity,
 )
 
 
 @patch("api.data_validation.DBConnector")
-def test_advanced_validator_initialization(mock_db):
+def test_advanced_validator_initialization(mock_db: Any) -> None:
     """Test initialization of AdvancedDataValidator."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -43,12 +47,12 @@ def test_advanced_validator_initialization(mock_db):
 
 
 @patch("api.data_validation.DBConnector")
-def test_validation_rule_engine(mock_db):
+def test_validation_rule_engine(mock_db: Any) -> None:
     """Test ValidationRuleEngine functionality."""
     rule_engine = ValidationRuleEngine()
 
     # Test adding a rule
-    def dummy_rule(df):
+    def dummy_rule(df: pd.DataFrame) -> ValidationResult:
         return ValidationResult(
             rule_name="dummy_rule",
             severity=ValidationSeverity.INFO,
@@ -59,11 +63,11 @@ def test_validation_rule_engine(mock_db):
 
     rule_engine.add_rule("dummy_rule", dummy_rule)
     assert "dummy_rule" in rule_engine.rules
-    assert rule_engine.rules["dummy_rule"]["enabled"] is True
+    assert rule_engine.rules["dummy_rule"].enabled is True
 
     # Test enabling/disabling a rule
     rule_engine.enable_rule("dummy_rule", False)
-    assert rule_engine.rules["dummy_rule"]["enabled"] is False
+    assert rule_engine.rules["dummy_rule"].enabled is False
 
     # Test setting and getting thresholds
     rule_engine.set_threshold("test_threshold", 0.5)
@@ -72,25 +76,23 @@ def test_validation_rule_engine(mock_db):
 
 
 @patch("api.data_validation.DBConnector")
-def test_price_integrity_validation(mock_db):
+def test_price_integrity_validation(mock_db: Any) -> None:
     """Test price integrity validation rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
     # Valid data
-    valid_data = pd.DataFrame(
-        {
-            "open": [1.0, 2.0, 3.0],
-            "high": [1.2, 2.2, 3.2],
-            "low": [0.9, 1.9, 2.9],
-            "close": [1.1, 2.1, 3.1],
-            "volume": [100, 200, 300],
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-            ],
-        }
-    )
+    valid_data = pd.DataFrame({
+        "open": [1.0, 2.0, 3.0],
+        "high": [1.2, 2.2, 3.2],
+        "low": [0.9, 1.9, 2.9],
+        "close": [1.1, 2.1, 3.1],
+        "volume": [100, 200, 300],
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+        ],
+    })
 
     result = validator._check_price_integrity(valid_data)
     assert result.severity == ValidationSeverity.INFO
@@ -98,20 +100,18 @@ def test_price_integrity_validation(mock_db):
     assert len(result.affected_rows) == 0
 
     # Invalid data with high < low
-    invalid_data = pd.DataFrame(
-        {
-            "open": [1.0, 2.0, 3.0],
-            "high": [1.2, 1.8, 3.2],  # 1.8 < 1.9 (low)
-            "low": [0.9, 1.9, 2.9],
-            "close": [1.1, 2.1, 3.1],
-            "volume": [100, 200, 300],
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-            ],
-        }
-    )
+    invalid_data = pd.DataFrame({
+        "open": [1.0, 2.0, 3.0],
+        "high": [1.2, 1.8, 3.2],  # 1.8 < 1.9 (low)
+        "low": [0.9, 1.9, 2.9],
+        "close": [1.1, 2.1, 3.1],
+        "volume": [100, 200, 300],
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+        ],
+    })
 
     result = validator._check_price_integrity(invalid_data)
     assert result.severity == ValidationSeverity.CRITICAL
@@ -121,25 +121,23 @@ def test_price_integrity_validation(mock_db):
 
 
 @patch("api.data_validation.DBConnector")
-def test_time_continuity_validation(mock_db):
+def test_time_continuity_validation(mock_db: Any) -> None:
     """Test time continuity validation rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
     # Continuous data
-    continuous_data = pd.DataFrame(
-        {
-            "open": [1.0, 2.0, 3.0],
-            "high": [1.2, 2.2, 3.2],
-            "low": [0.9, 1.9, 2.9],
-            "close": [1.1, 2.1, 3.1],
-            "volume": [100, 200, 300],
-            "timestamp": [
-                datetime(2023, 1, 1, 0, 0),
-                datetime(2023, 1, 1, 1, 0),
-                datetime(2023, 1, 1, 2, 0),
-            ],
-        }
-    )
+    continuous_data = pd.DataFrame({
+        "open": [1.0, 2.0, 3.0],
+        "high": [1.2, 2.2, 3.2],
+        "low": [0.9, 1.9, 2.9],
+        "close": [1.1, 2.1, 3.1],
+        "volume": [100, 200, 300],
+        "timestamp": [
+            datetime(2023, 1, 1, 0, 0),
+            datetime(2023, 1, 1, 1, 0),
+            datetime(2023, 1, 1, 2, 0),
+        ],
+    })
 
     result = validator._check_time_continuity(continuous_data, "1h")
     assert result.severity == ValidationSeverity.INFO
@@ -147,20 +145,18 @@ def test_time_continuity_validation(mock_db):
     assert len(result.affected_rows) == 0
 
     # Data with gaps
-    gapped_data = pd.DataFrame(
-        {
-            "open": [1.0, 2.0, 3.0],
-            "high": [1.2, 2.2, 3.2],
-            "low": [0.9, 1.9, 2.9],
-            "close": [1.1, 2.1, 3.1],
-            "volume": [100, 200, 300],
-            "timestamp": [
-                datetime(2023, 1, 1, 0, 0),
-                datetime(2023, 1, 1, 1, 0),
-                datetime(2023, 1, 1, 3, 0),  # 2-hour gap
-            ],
-        }
-    )
+    gapped_data = pd.DataFrame({
+        "open": [1.0, 2.0, 3.0],
+        "high": [1.2, 2.2, 3.2],
+        "low": [0.9, 1.9, 2.9],
+        "close": [1.1, 2.1, 3.1],
+        "volume": [100, 200, 300],
+        "timestamp": [
+            datetime(2023, 1, 1, 0, 0),
+            datetime(2023, 1, 1, 1, 0),
+            datetime(2023, 1, 1, 3, 0),  # 2-hour gap
+        ],
+    })
 
     result = validator._check_time_continuity(gapped_data, "1h")
     assert result.severity == ValidationSeverity.WARNING
@@ -169,27 +165,25 @@ def test_time_continuity_validation(mock_db):
 
 
 @patch("api.data_validation.DBConnector")
-def test_statistical_outliers_detection(mock_db):
+def test_statistical_outliers_detection(mock_db: Any) -> None:
     """Test statistical outliers detection rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
     # Normal data
-    normal_data = pd.DataFrame(
-        {
-            "open": [1.0, 1.1, 0.9, 1.05, 0.95],
-            "high": [1.1, 1.2, 1.0, 1.15, 1.05],
-            "low": [0.9, 1.0, 0.8, 0.95, 0.85],
-            "close": [1.05, 1.15, 0.95, 1.1, 0.9],
-            "volume": [100, 110, 90, 105, 95],
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-                datetime(2023, 1, 4),
-                datetime(2023, 1, 5),
-            ],
-        }
-    )
+    normal_data = pd.DataFrame({
+        "open": [1.0, 1.1, 0.9, 1.05, 0.95],
+        "high": [1.1, 1.2, 1.0, 1.15, 1.05],
+        "low": [0.9, 1.0, 0.8, 0.95, 0.85],
+        "close": [1.05, 1.15, 0.95, 1.1, 0.9],
+        "volume": [100, 110, 90, 105, 95],
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+            datetime(2023, 1, 4),
+            datetime(2023, 1, 5),
+        ],
+    })
 
     # Set a lower threshold to detect outliers more easily in test data
     validator.rule_engine.set_threshold("outlier_zscore", 2.0)
@@ -199,22 +193,20 @@ def test_statistical_outliers_detection(mock_db):
     assert "no statistical outliers" in result.message.lower()
 
     # Data with outliers
-    outlier_data = pd.DataFrame(
-        {
-            "open": [1.0, 1.1, 0.9, 1.05, 5.0],  # 5.0 is an outlier
-            "high": [1.1, 1.2, 1.0, 1.15, 5.5],  # 5.5 is an outlier
-            "low": [0.9, 1.0, 0.8, 0.95, 4.5],  # 4.5 is an outlier
-            "close": [1.05, 1.15, 0.95, 1.1, 5.2],  # 5.2 is an outlier
-            "volume": [100, 110, 90, 105, 95],
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-                datetime(2023, 1, 4),
-                datetime(2023, 1, 5),
-            ],
-        }
-    )
+    outlier_data = pd.DataFrame({
+        "open": [1.0, 1.1, 0.9, 1.05, 5.0],  # 5.0 is an outlier
+        "high": [1.1, 1.2, 1.0, 1.15, 5.5],  # 5.5 is an outlier
+        "low": [0.9, 1.0, 0.8, 0.95, 4.5],  # 4.5 is an outlier
+        "close": [1.05, 1.15, 0.95, 1.1, 5.2],  # 5.2 is an outlier
+        "volume": [100, 110, 90, 105, 95],
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+            datetime(2023, 1, 4),
+            datetime(2023, 1, 5),
+        ],
+    })
 
     result = validator._detect_statistical_outliers(outlier_data)
     assert result.severity == ValidationSeverity.WARNING
@@ -224,49 +216,45 @@ def test_statistical_outliers_detection(mock_db):
 
 
 @patch("api.data_validation.DBConnector")
-def test_volume_anomalies_detection(mock_db):
+def test_volume_anomalies_detection(mock_db: Any) -> None:
     """Test volume anomalies detection rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
     # Normal volume data
-    normal_data = pd.DataFrame(
-        {
-            "open": [1.0, 1.1, 0.9, 1.05, 0.95],
-            "high": [1.1, 1.2, 1.0, 1.15, 1.05],
-            "low": [0.9, 1.0, 0.8, 0.95, 0.85],
-            "close": [1.05, 1.15, 0.95, 1.1, 0.9],
-            "volume": [100, 110, 90, 105, 95],
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-                datetime(2023, 1, 4),
-                datetime(2023, 1, 5),
-            ],
-        }
-    )
+    normal_data = pd.DataFrame({
+        "open": [1.0, 1.1, 0.9, 1.05, 0.95],
+        "high": [1.1, 1.2, 1.0, 1.15, 1.05],
+        "low": [0.9, 1.0, 0.8, 0.95, 0.85],
+        "close": [1.05, 1.15, 0.95, 1.1, 0.9],
+        "volume": [100, 110, 90, 105, 95],
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+            datetime(2023, 1, 4),
+            datetime(2023, 1, 5),
+        ],
+    })
 
     result = validator._detect_volume_anomalies(normal_data)
     assert result.severity == ValidationSeverity.INFO
     assert "no volume anomalies" in result.message.lower()
 
     # Data with volume spike
-    spike_data = pd.DataFrame(
-        {
-            "open": [1.0, 1.1, 0.9, 1.05, 0.95],
-            "high": [1.1, 1.2, 1.0, 1.15, 1.05],
-            "low": [0.9, 1.0, 0.8, 0.95, 0.85],
-            "close": [1.05, 1.15, 0.95, 1.1, 0.9],
-            "volume": [100, 110, 90, 105, 1000],  # 1000 is a spike
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-                datetime(2023, 1, 4),
-                datetime(2023, 1, 5),
-            ],
-        }
-    )
+    spike_data = pd.DataFrame({
+        "open": [1.0, 1.1, 0.9, 1.05, 0.95],
+        "high": [1.1, 1.2, 1.0, 1.15, 1.05],
+        "low": [0.9, 1.0, 0.8, 0.95, 0.85],
+        "close": [1.05, 1.15, 0.95, 1.1, 0.9],
+        "volume": [100, 110, 90, 105, 1000],  # 1000 is a spike
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+            datetime(2023, 1, 4),
+            datetime(2023, 1, 5),
+        ],
+    })
 
     result = validator._detect_volume_anomalies(spike_data)
     assert result.severity == ValidationSeverity.WARNING
@@ -276,7 +264,7 @@ def test_volume_anomalies_detection(mock_db):
 
 
 @patch("api.data_validation.DBConnector")
-def test_ml_anomalies_detection(mock_db):
+def test_ml_anomalies_detection(mock_db: Any) -> None:
     """Test ML-based anomaly detection rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -310,27 +298,25 @@ def test_ml_anomalies_detection(mock_db):
 
 
 @patch("api.data_validation.DBConnector")
-def test_price_consistency_validation(mock_db):
+def test_price_consistency_validation(mock_db: Any) -> None:
     """Test price consistency validation rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
     # Consistent price data
-    consistent_data = pd.DataFrame(
-        {
-            "open": [1.0, 1.02, 1.03, 1.01, 1.02],
-            "high": [1.05, 1.07, 1.08, 1.06, 1.07],
-            "low": [0.98, 0.99, 1.0, 0.99, 1.0],
-            "close": [1.02, 1.03, 1.01, 1.02, 1.03],
-            "volume": [100, 110, 90, 105, 95],
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-                datetime(2023, 1, 4),
-                datetime(2023, 1, 5),
-            ],
-        }
-    )
+    consistent_data = pd.DataFrame({
+        "open": [1.0, 1.02, 1.03, 1.01, 1.02],
+        "high": [1.05, 1.07, 1.08, 1.06, 1.07],
+        "low": [0.98, 0.99, 1.0, 0.99, 1.0],
+        "close": [1.02, 1.03, 1.01, 1.02, 1.03],
+        "volume": [100, 110, 90, 105, 95],
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+            datetime(2023, 1, 4),
+            datetime(2023, 1, 5),
+        ],
+    })
 
     result = validator._check_price_consistency(consistent_data)
     assert result.severity == ValidationSeverity.INFO
@@ -342,22 +328,20 @@ def test_price_consistency_validation(mock_db):
         "price_change_threshold", 0.1
     )  # 10% change threshold
 
-    sudden_change_data = pd.DataFrame(
-        {
-            "open": [1.0, 1.02, 1.03, 1.01, 1.02],
-            "high": [1.05, 1.07, 1.08, 1.06, 1.07],
-            "low": [0.98, 0.99, 1.0, 0.99, 1.0],
-            "close": [1.02, 1.03, 1.01, 1.02, 1.15],  # 13% increase from previous
-            "volume": [100, 110, 90, 105, 95],
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-                datetime(2023, 1, 4),
-                datetime(2023, 1, 5),
-            ],
-        }
-    )
+    sudden_change_data = pd.DataFrame({
+        "open": [1.0, 1.02, 1.03, 1.01, 1.02],
+        "high": [1.05, 1.07, 1.08, 1.06, 1.07],
+        "low": [0.98, 0.99, 1.0, 0.99, 1.0],
+        "close": [1.02, 1.03, 1.01, 1.02, 1.15],  # 13% increase from previous
+        "volume": [100, 110, 90, 105, 95],
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+            datetime(2023, 1, 4),
+            datetime(2023, 1, 5),
+        ],
+    })
 
     result = validator._check_price_consistency(sudden_change_data)
     assert result.severity == ValidationSeverity.WARNING
@@ -366,27 +350,25 @@ def test_price_consistency_validation(mock_db):
 
 
 @patch("api.data_validation.DBConnector")
-def test_volume_consistency_validation(mock_db):
+def test_volume_consistency_validation(mock_db: Any) -> None:
     """Test volume consistency validation rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
     # Normal volume data
-    normal_data = pd.DataFrame(
-        {
-            "open": [1.0, 1.1, 0.9, 1.05, 0.95],
-            "high": [1.1, 1.2, 1.0, 1.15, 1.05],
-            "low": [0.9, 1.0, 0.8, 0.95, 0.85],
-            "close": [1.05, 1.15, 0.95, 1.1, 0.9],
-            "volume": [100, 110, 90, 105, 95],
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-                datetime(2023, 1, 4),
-                datetime(2023, 1, 5),
-            ],
-        }
-    )
+    normal_data = pd.DataFrame({
+        "open": [1.0, 1.1, 0.9, 1.05, 0.95],
+        "high": [1.1, 1.2, 1.0, 1.15, 1.05],
+        "low": [0.9, 1.0, 0.8, 0.95, 0.85],
+        "close": [1.05, 1.15, 0.95, 1.1, 0.9],
+        "volume": [100, 110, 90, 105, 95],
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+            datetime(2023, 1, 4),
+            datetime(2023, 1, 5),
+        ],
+    })
 
     result = validator._check_volume_consistency(normal_data)
     assert result.severity == ValidationSeverity.INFO
@@ -394,22 +376,20 @@ def test_volume_consistency_validation(mock_db):
     assert len(result.affected_rows) == 0
 
     # Data with zero volume
-    zero_volume_data = pd.DataFrame(
-        {
-            "open": [1.0, 1.1, 0.9, 1.05, 0.95],
-            "high": [1.1, 1.2, 1.0, 1.15, 1.05],
-            "low": [0.9, 1.0, 0.8, 0.95, 0.85],
-            "close": [1.05, 1.15, 0.95, 1.1, 0.9],
-            "volume": [100, 0, 90, 105, 95],  # Zero volume
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-                datetime(2023, 1, 4),
-                datetime(2023, 1, 5),
-            ],
-        }
-    )
+    zero_volume_data = pd.DataFrame({
+        "open": [1.0, 1.1, 0.9, 1.05, 0.95],
+        "high": [1.1, 1.2, 1.0, 1.15, 1.05],
+        "low": [0.9, 1.0, 0.8, 0.95, 0.85],
+        "close": [1.05, 1.15, 0.95, 1.1, 0.9],
+        "volume": [100, 0, 90, 105, 95],  # Zero volume
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+            datetime(2023, 1, 4),
+            datetime(2023, 1, 5),
+        ],
+    })
 
     result = validator._check_volume_consistency(zero_volume_data)
     assert result.severity == ValidationSeverity.WARNING
@@ -418,22 +398,20 @@ def test_volume_consistency_validation(mock_db):
     assert 1 in result.affected_rows  # Index of the zero volume row
 
     # Data with negative volume
-    negative_volume_data = pd.DataFrame(
-        {
-            "open": [1.0, 1.1, 0.9, 1.05, 0.95],
-            "high": [1.1, 1.2, 1.0, 1.15, 1.05],
-            "low": [0.9, 1.0, 0.8, 0.95, 0.85],
-            "close": [1.05, 1.15, 0.95, 1.1, 0.9],
-            "volume": [100, 110, -10, 105, 95],  # Negative volume
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-                datetime(2023, 1, 4),
-                datetime(2023, 1, 5),
-            ],
-        }
-    )
+    negative_volume_data = pd.DataFrame({
+        "open": [1.0, 1.1, 0.9, 1.05, 0.95],
+        "high": [1.1, 1.2, 1.0, 1.15, 1.05],
+        "low": [0.9, 1.0, 0.8, 0.95, 0.85],
+        "close": [1.05, 1.15, 0.95, 1.1, 0.9],
+        "volume": [100, 110, -10, 105, 95],  # Negative volume
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+            datetime(2023, 1, 4),
+            datetime(2023, 1, 5),
+        ],
+    })
 
     result = validator._check_volume_consistency(negative_volume_data)
     assert result.severity == ValidationSeverity.ERROR
@@ -443,7 +421,7 @@ def test_volume_consistency_validation(mock_db):
 
 
 @patch("api.data_validation.DBConnector")
-def test_data_quality_score_calculation(mock_db):
+def test_data_quality_score_calculation(mock_db: Any) -> None:
     """Test data quality score calculation."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -489,27 +467,87 @@ def test_data_quality_score_calculation(mock_db):
 
 
 @patch("api.data_validation.DBConnector")
-def test_comprehensive_validation(mock_db):
+def test_comprehensive_validation(mock_db: Any) -> None:
     """Test comprehensive validation method."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
     # Create test data with some issues
-    test_data = pd.DataFrame(
-        {
-            "open": [1.0, 1.1, 0.9, 1.05, 0.95],
-            "high": [1.1, 1.2, 1.0, 1.15, 1.05],
-            "low": [0.9, 1.0, 0.8, 0.95, 0.85],
-            "close": [1.05, 1.15, 0.95, 1.1, 0.9],
-            "volume": [100, 0, 90, 105, 95],  # Zero volume in row 1
-            "timestamp": [
-                datetime(2023, 1, 1),
-                datetime(2023, 1, 2),
-                datetime(2023, 1, 3),
-                datetime(2023, 1, 4),
-                datetime(2023, 1, 5),
-            ],
-        }
+    test_data = pd.DataFrame({
+        "open": [1.0, 1.1, 0.9, 1.05, 0.95],
+        "high": [1.1, 1.2, 1.0, 1.15, 1.05],
+        "low": [0.9, 1.0, 0.8, 0.95, 0.85],
+        "close": [1.05, 1.15, 0.95, 1.1, 0.9],
+        "volume": [100, 0, 90, 105, 95],  # Zero volume in row 1
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+            datetime(2023, 1, 4),
+            datetime(2023, 1, 5),
+        ],
+    })
+
+    mock_db.return_value.get_ohlcv_data.return_value = test_data  # type: ignore[attr-defined]
+
+    # Run comprehensive validation
+    results, quality_score = validator.comprehensive_validation(
+        "exchange", "symbol", "timeframe"
     )
+
+    # Check that results and quality score are returned
+    assert isinstance(results, list)
+    assert len(results) > 0
+    assert isinstance(quality_score, DataQualityScore)
+
+    # Check that the volume consistency issue was detected
+    volume_results = [r for r in results if r.rule_name == "volume_consistency"]
+    assert len(volume_results) > 0
+    assert volume_results[0].severity == ValidationSeverity.WARNING
+    assert "zero volume" in volume_results[0].message.lower()
+
+    # Test with empty data
+    mock_db.return_value.get_ohlcv_data.return_value = pd.DataFrame()  # type: ignore[attr-defined]
+    results, quality_score = validator.comprehensive_validation(
+        "exchange", "symbol", "timeframe"
+    )
+    assert len(results) == 0
+    assert quality_score.overall_score == 0.0
+
+    # Test with database error
+    mock_db.return_value.get_ohlcv_data.side_effect = Exception("Database error")  # type: ignore[attr-defined]
+    results, quality_score = validator.comprehensive_validation(
+        "exchange", "symbol", "timeframe"
+    )
+    assert len(results) == 1
+    assert results[0].rule_name == "system_error"
+    assert results[0].severity == ValidationSeverity.CRITICAL
+    assert quality_score.overall_score == 0.0
+
+
+@patch("api.data_validation.DBConnector")
+def test_backward_compatibility(mock_db: Any) -> None:
+    """Test backward compatibility with DataValidator alias."""
+    from api.data_validation import DataValidator
+
+    # Check that DataValidator is an alias for AdvancedDataValidator
+    validator = DataValidator("dummy_connection_string")
+    assert isinstance(validator, AdvancedDataValidator)
+
+    # Create test data with some issues
+    test_data = pd.DataFrame({
+        "open": [1.0, 1.1, 0.9, 1.05, 0.95],
+        "high": [1.1, 1.2, 1.0, 1.15, 1.05],
+        "low": [0.9, 1.0, 0.8, 0.95, 0.85],
+        "close": [1.05, 1.15, 0.95, 1.1, 0.9],
+        "volume": [100, 0, 90, 105, 95],  # Zero volume in row 1
+        "timestamp": [
+            datetime(2023, 1, 1),
+            datetime(2023, 1, 2),
+            datetime(2023, 1, 3),
+            datetime(2023, 1, 4),
+            datetime(2023, 1, 5),
+        ],
+    })
 
     mock_db.return_value.get_ohlcv_data.return_value = test_data
 
@@ -546,48 +584,3 @@ def test_comprehensive_validation(mock_db):
     assert results[0].rule_name == "system_error"
     assert results[0].severity == ValidationSeverity.CRITICAL
     assert quality_score.overall_score == 0.0
-
-
-@patch("api.data_validation.DBConnector")
-def test_backward_compatibility(mock_db):
-    """Test backward compatibility with DataValidator alias."""
-    from api.data_validation import DataValidator
-
-    # Check that DataValidator is an alias for AdvancedDataValidator
-    validator = DataValidator("dummy_connection_string")
-    assert isinstance(validator, AdvancedDataValidator)
-    assert isinstance(quality_score, DataQualityScore)
-
-    # Check that the volume consistency issue was detected
-    volume_results = [r for r in results if r.rule_name == "volume_consistency"]
-    assert len(volume_results) > 0
-    assert volume_results[0].severity == ValidationSeverity.WARNING
-    assert "zero volume" in volume_results[0].message.lower()
-
-    # Test with empty data
-    mock_db.return_value.get_ohlcv_data.return_value = pd.DataFrame()
-    results, quality_score = validator.comprehensive_validation(
-        "exchange", "symbol", "timeframe"
-    )
-    assert len(results) == 0
-    assert quality_score.overall_score == 0.0
-
-    # Test with database error
-    mock_db.return_value.get_ohlcv_data.side_effect = Exception("Database error")
-    results, quality_score = validator.comprehensive_validation(
-        "exchange", "symbol", "timeframe"
-    )
-    assert len(results) == 1
-    assert results[0].rule_name == "system_error"
-    assert results[0].severity == ValidationSeverity.CRITICAL
-    assert quality_score.overall_score == 0.0
-
-
-@patch("api.data_validation.DBConnector")
-def test_backward_compatibility(mock_db):
-    """Test backward compatibility with DataValidator alias."""
-    from api.data_validation import DataValidator
-
-    # Check that DataValidator is an alias for AdvancedDataValidator
-    validator = DataValidator("dummy_connection_string")
-    assert isinstance(validator, AdvancedDataValidator)
