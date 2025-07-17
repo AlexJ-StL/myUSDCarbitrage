@@ -56,6 +56,6 @@ def strategy_simple_arb(
             )
 
         portfolio_value = cash + (position * price)
-        portfolio.append({"date": row["timestamp"], "value": portfolio_value})
+        portfolio.append({"date": row["timestamp"], "value": float(portfolio_value)})
 
     return {"trades": trades, "portfolio": portfolio}

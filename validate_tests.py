@@ -3,11 +3,11 @@
 
 import sys
 import os
+import pandas as pd  # type: ignore
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-import pandas as pd  # type: ignore
 from strategies.simple_arb import strategy_simple_arb
 
 try:

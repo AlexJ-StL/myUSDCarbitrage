@@ -553,8 +553,8 @@ class AdvancedDataValidator:
                             ).mean()
 
                 # Remove NaN values
-                df_features = df_features.fillna(method="bfill")
-                df_features = df_features.fillna(method="ffill")
+                df_features = df_features.bfill()
+                df_features = df_features.ffill()
                 features = [df_features.values]
                 feature_names = df_features.columns.tolist()
 
