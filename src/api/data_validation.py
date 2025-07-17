@@ -101,15 +101,20 @@ class ValidationRuleEngine:
             "max_price_deviation": 0.2,  # Maximum allowed price deviation (20%)
             "min_quality_score": 0.7,  # Minimum acceptable quality score
         }
-        self.rule_categories: Set[str] = {"integrity", "completeness", "consistency", "anomaly"}
+        self.rule_categories: Set[str] = {
+            "integrity",
+            "completeness",
+            "consistency",
+            "anomaly",
+        }
 
     def add_rule(
-        self, 
-        name: str, 
-        func: Callable, 
-        enabled: bool = True, 
-        description: str = "", 
-        category: str = "general"
+        self,
+        name: str,
+        func: Callable,
+        enabled: bool = True,
+        description: str = "",
+        category: str = "general",
     ) -> None:
         """Add a custom validation rule."""
         self.rules[name] = ValidationRule(
@@ -117,7 +122,7 @@ class ValidationRuleEngine:
             function=func,
             enabled=enabled,
             description=description,
-            category=category
+            category=category,
         )
         if category not in self.rule_categories:
             self.rule_categories.add(category)
@@ -144,20 +149,22 @@ class ValidationRuleEngine:
         try:
             with open(config_path, "r") as f:
                 config = json.load(f)
-                
+
             # Load thresholds
             if "thresholds" in config:
                 for name, value in config["thresholds"].items():
                     self.thresholds[name] = value
-                    
+
             # Load rule configurations
             if "rules" in config:
                 for rule_name, rule_config in config["rules"].items():
                     if rule_name in self.rules:
                         self.rules[rule_name].enabled = rule_config.get("enabled", True)
                         if "severity_threshold" in rule_config:
-                            self.rules[rule_name].severity_threshold = rule_config["severity_threshold"]
-                            
+                            self.rules[rule_name].severity_threshold = rule_config[
+                                "severity_threshold"
+                            ]
+
             logger.info(f"Loaded validation configuration from {config_path}")
         except Exception as e:
             logger.error(f"Failed to load validation configuration: {e}")
@@ -172,18 +179,18 @@ class ValidationRuleEngine:
                         "enabled": rule.enabled,
                         "category": rule.category,
                         "description": rule.description,
-                        "severity_threshold": rule.severity_threshold
+                        "severity_threshold": rule.severity_threshold,
                     }
                     for name, rule in self.rules.items()
-                }
+                },
             }
-            
+
             # Create directory if it doesn't exist
             os.makedirs(os.path.dirname(config_path), exist_ok=True)
-            
+
             with open(config_path, "w") as f:
                 json.dump(config, f, indent=2)
-                
+
             logger.info(f"Saved validation configuration to {config_path}")
         except Exception as e:
             logger.error(f"Failed to save validation configuration: {e}")
@@ -199,9 +206,11 @@ class AdvancedDataValidator:
         self.isolation_forest: Optional[IsolationForest] = None
         self.scaler = StandardScaler()
         self._setup_default_rules()
-        
+
         # Try to load configuration if it exists
-        config_path = os.path.join(os.path.dirname(__file__), "..", "config", "validation_config.json")
+        config_path = os.path.join(
+            os.path.dirname(__file__), "..", "config", "validation_config.json"
+        )
         if os.path.exists(config_path):
             self.rule_engine.load_config(config_path)
 
@@ -382,7 +391,9 @@ class AdvancedDataValidator:
                     symbol,
                     timeframe,
                 )
-                self._flag_data_for_review(exchange, symbol, timeframe, quality_score, validation_results)
+                self._flag_data_for_review(
+                    exchange, symbol, timeframe, quality_score, validation_results
+                )
 
             return validation_results, quality_score
 
@@ -407,12 +418,12 @@ class AdvancedDataValidator:
             return [error_result], error_score
 
     def _flag_data_for_review(
-        self, 
-        exchange: str, 
-        symbol: str, 
-        timeframe: str, 
-        quality_score: DataQualityScore, 
-        validation_results: List[ValidationResult]
+        self,
+        exchange: str,
+        symbol: str,
+        timeframe: str,
+        quality_score: DataQualityScore,
+        validation_results: List[ValidationResult],
     ) -> None:
         """Flag data for manual review."""
         try:
@@ -422,86 +433,88 @@ class AdvancedDataValidator:
                 "symbol": symbol,
                 "timeframe": timeframe,
                 "quality_score": quality_score.to_dict(),
-                "validation_results": [result.to_dict() for result in validation_results],
+                "validation_results": [
+                    result.to_dict() for result in validation_results
+                ],
                 "timestamp": pd.Timestamp.now().isoformat(),
-                "status": "pending_review"
+                "status": "pending_review",
             }
-            
+
             # Create directory if it doesn't exist
             review_dir = os.path.join(os.path.dirname(__file__), "..", "data", "review")
             os.makedirs(review_dir, exist_ok=True)
-            
+
             # Save review data to file
             filename = f"{exchange}_{symbol}_{timeframe}_{pd.Timestamp.now().strftime('%Y%m%d%H%M%S')}.json"
             filepath = os.path.join(review_dir, filename)
-            
+
             with open(filepath, "w") as f:
                 json.dump(review_data, f, indent=2)
-                
+
             logger.info(f"Flagged data for review: {filepath}")
-            
+
             # TODO: Implement notification system for administrators
             # This would typically involve sending an email or other alert
-            
+
         except Exception as e:
             logger.error(f"Failed to flag data for review: {e}")
 
     def _setup_default_rules(self) -> None:
         """Setup default validation rules."""
         self.rule_engine.add_rule(
-            "price_integrity", 
+            "price_integrity",
             self._check_price_integrity,
             description="Validates OHLC price relationships and integrity",
-            category="integrity"
+            category="integrity",
         )
         self.rule_engine.add_rule(
-            "time_continuity", 
+            "time_continuity",
             self._check_time_continuity,
             description="Checks for gaps in time series data",
-            category="completeness"
+            category="completeness",
         )
         self.rule_engine.add_rule(
-            "statistical_outliers", 
+            "statistical_outliers",
             self._detect_statistical_outliers,
             description="Detects statistical outliers using multiple methods",
-            category="anomaly"
+            category="anomaly",
         )
         self.rule_engine.add_rule(
-            "volume_anomalies", 
+            "volume_anomalies",
             self._detect_volume_anomalies,
             description="Detects volume anomalies using statistical methods",
-            category="anomaly"
+            category="anomaly",
         )
         self.rule_engine.add_rule(
-            "ml_anomalies", 
+            "ml_anomalies",
             self._detect_ml_anomalies,
             description="ML-based anomaly detection using Isolation Forest",
-            category="anomaly"
+            category="anomaly",
         )
         self.rule_engine.add_rule(
-            "clustering_anomalies", 
+            "clustering_anomalies",
             self._detect_clustering_anomalies,
             description="Anomaly detection using DBSCAN clustering",
-            category="anomaly"
+            category="anomaly",
         )
         self.rule_engine.add_rule(
-            "price_consistency", 
+            "price_consistency",
             self._check_price_consistency,
             description="Checks price consistency and sudden changes",
-            category="consistency"
+            category="consistency",
         )
         self.rule_engine.add_rule(
-            "volume_consistency", 
+            "volume_consistency",
             self._check_volume_consistency,
             description="Checks volume consistency and unusual patterns",
-            category="consistency"
+            category="consistency",
         )
         self.rule_engine.add_rule(
-            "cross_exchange_consistency", 
+            "cross_exchange_consistency",
             self._check_cross_exchange_consistency,
             description="Checks price consistency across exchanges",
             category="consistency",
-            enabled=False  # Disabled by default as it requires data from multiple exchanges
+            enabled=False,  # Disabled by default as it requires data from multiple exchanges
         )
 
     def enable_rule(self, rule_name: str, enabled: bool = True) -> None:
@@ -515,13 +528,17 @@ class AdvancedDataValidator:
     def save_configuration(self, config_path: Optional[str] = None) -> None:
         """Save current configuration to file."""
         if config_path is None:
-            config_path = os.path.join(os.path.dirname(__file__), "..", "config", "validation_config.json")
+            config_path = os.path.join(
+                os.path.dirname(__file__), "..", "config", "validation_config.json"
+            )
         self.rule_engine.save_config(config_path)
 
     def load_configuration(self, config_path: Optional[str] = None) -> None:
         """Load configuration from file."""
         if config_path is None:
-            config_path = os.path.join(os.path.dirname(__file__), "..", "config", "validation_config.json")
+            config_path = os.path.join(
+                os.path.dirname(__file__), "..", "config", "validation_config.json"
+            )
         self.rule_engine.load_config(config_path)
 
     def save_ml_model(self, model_path: Optional[str] = None) -> None:
@@ -529,13 +546,15 @@ class AdvancedDataValidator:
         if self.isolation_forest is None:
             logger.warning("No ML model to save")
             return
-            
+
         if model_path is None:
-            model_path = os.path.join(os.path.dirname(__file__), "..", "models", "isolation_forest.joblib")
-            
+            model_path = os.path.join(
+                os.path.dirname(__file__), "..", "models", "isolation_forest.joblib"
+            )
+
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(model_path), exist_ok=True)
-        
+
         try:
             joblib.dump(self.isolation_forest, model_path)
             logger.info(f"Saved ML model to {model_path}")
@@ -545,12 +564,14 @@ class AdvancedDataValidator:
     def load_ml_model(self, model_path: Optional[str] = None) -> None:
         """Load trained ML model from file."""
         if model_path is None:
-            model_path = os.path.join(os.path.dirname(__file__), "..", "models", "isolation_forest.joblib")
-            
+            model_path = os.path.join(
+                os.path.dirname(__file__), "..", "models", "isolation_forest.joblib"
+            )
+
         if not os.path.exists(model_path):
             logger.warning(f"ML model file not found: {model_path}")
             return
-            
+
         try:
             self.isolation_forest = joblib.load(model_path)
             logger.info(f"Loaded ML model from {model_path}")
@@ -594,7 +615,11 @@ class AdvancedDataValidator:
             affected_rows.extend(df[inf_mask].index.tolist())
 
         # Determine severity based on violation types and counts
-        if any(v in ["negative_prices", "high_low"] for v in violations.keys() if violations[v].any()):
+        if any(
+            v in ["negative_prices", "high_low"]
+            for v in violations.keys()
+            if violations[v].any()
+        ):
             severity = ValidationSeverity.CRITICAL
         elif nan_mask.any() or inf_mask.any():
             severity = ValidationSeverity.CRITICAL
@@ -649,14 +674,14 @@ class AdvancedDataValidator:
 
         gaps = time_diffs[time_diffs > max_allowed_gap]
         gap_indices = gaps.index.tolist()
-        
+
         # Check for duplicate timestamps
         duplicate_timestamps = df_sorted["timestamp"].duplicated()
         duplicate_indices = df_sorted[duplicate_timestamps].index.tolist()
-        
+
         # Check for out-of-order timestamps
         is_sorted = df_sorted["timestamp"].equals(df["timestamp"])
-        
+
         # Determine severity based on findings
         if len(gaps) > 0:
             if len(gaps) / len(df) > 0.1:  # More than 10% of data has gaps
@@ -669,7 +694,7 @@ class AdvancedDataValidator:
             severity = ValidationSeverity.WARNING
         else:
             severity = ValidationSeverity.INFO
-            
+
         # Build message
         messages = []
         if len(gaps) > 0:
@@ -678,9 +703,11 @@ class AdvancedDataValidator:
             messages.append(f"Found {duplicate_timestamps.sum()} duplicate timestamps")
         if not is_sorted:
             messages.append("Timestamps are not in chronological order")
-            
-        message = "; ".join(messages) if messages else "Time continuity validation passed"
-        
+
+        message = (
+            "; ".join(messages) if messages else "Time continuity validation passed"
+        )
+
         # Combine affected rows
         affected_rows = list(set(gap_indices + duplicate_indices))
 
@@ -717,12 +744,14 @@ class AdvancedDataValidator:
                     outliers = df[abs(scaled_diff) > threshold].index.tolist()
                     outlier_indices.extend(outliers)
                     methods_used.append(f"Modified Z-score ({col})")
-                    
+
                     # Store outlier details
                     for idx in outliers:
                         if idx not in outlier_details:
                             outlier_details[idx] = {}
-                        outlier_details[idx][f"{col}_zscore"] = float(scaled_diff.iloc[idx])
+                        outlier_details[idx][f"{col}_zscore"] = float(
+                            scaled_diff.iloc[idx]
+                        )
                         outlier_details[idx][f"{col}_value"] = float(df[col].iloc[idx])
                         outlier_details[idx][f"{col}_median"] = float(median)
 
@@ -740,7 +769,7 @@ class AdvancedDataValidator:
                 ].index.tolist()
                 outlier_indices.extend(iqr_outliers)
                 methods_used.append(f"IQR ({col})")
-                
+
                 # Store outlier details
                 for idx in iqr_outliers:
                     if idx not in outlier_details:
@@ -756,33 +785,39 @@ class AdvancedDataValidator:
                 window_size = min(20, len(df) // 5)  # Adaptive window size
                 rolling_mean = df[col].rolling(window=window_size, center=True).mean()
                 rolling_std = df[col].rolling(window=window_size, center=True).std()
-                
+
                 # Fill NaN values at edges
-                rolling_mean = rolling_mean.fillna(method="bfill").fillna(method="ffill")
+                rolling_mean = rolling_mean.fillna(method="bfill").fillna(
+                    method="ffill"
+                )
                 rolling_std = rolling_std.fillna(method="bfill").fillna(method="ffill")
-                
+
                 # Identify values outside of 3 standard deviations
                 threshold = self.rule_engine.get_threshold("outlier_zscore")
                 upper_bound = rolling_mean + threshold * rolling_std
                 lower_bound = rolling_mean - threshold * rolling_std
-                
+
                 contextual_outliers = df[
                     (df[col] > upper_bound) | (df[col] < lower_bound)
                 ].index.tolist()
-                
+
                 outlier_indices.extend(contextual_outliers)
                 methods_used.append(f"Rolling window ({col})")
-                
+
                 # Store outlier details
                 for idx in contextual_outliers:
                     if idx not in outlier_details:
                         outlier_details[idx] = {}
-                    outlier_details[idx][f"{col}_rolling_mean"] = float(rolling_mean.iloc[idx])
-                    outlier_details[idx][f"{col}_rolling_std"] = float(rolling_std.iloc[idx])
+                    outlier_details[idx][f"{col}_rolling_mean"] = float(
+                        rolling_mean.iloc[idx]
+                    )
+                    outlier_details[idx][f"{col}_rolling_std"] = float(
+                        rolling_std.iloc[idx]
+                    )
                     outlier_details[idx][f"{col}_value"] = float(df[col].iloc[idx])
 
         unique_outliers = list(set(outlier_indices))
-        
+
         # Determine severity based on proportion of outliers
         outlier_proportion = len(unique_outliers) / len(df) if len(df) > 0 else 0
         if outlier_proportion > 0.1:  # More than 10% are outliers
@@ -793,7 +828,7 @@ class AdvancedDataValidator:
             severity = ValidationSeverity.INFO
         else:
             severity = ValidationSeverity.INFO
-            
+
         message = (
             f"Found {len(unique_outliers)} statistical outliers ({outlier_proportion:.1%} of data)"
             if unique_outliers
@@ -843,12 +878,14 @@ class AdvancedDataValidator:
             threshold = self.rule_engine.get_threshold("volume_anomaly_zscore")
             scaled_diff = 0.6745 * (log_volume - median) / mad
             statistical_outliers = df[abs(scaled_diff) > threshold].index.tolist()
-            
+
         # Detect sudden volume changes
         if len(df) > 1:
             df_sorted = df.sort_values("timestamp")
             volume_changes = df_sorted["volume"].pct_change().abs()
-            sudden_changes = volume_changes[volume_changes > 1.0].index.tolist()  # 100% change
+            sudden_changes = volume_changes[
+                volume_changes > 1.0
+            ].index.tolist()  # 100% change
         else:
             sudden_changes = []
 
@@ -858,17 +895,24 @@ class AdvancedDataValidator:
             df_sorted = df.sort_values("timestamp")
             price_changes = df_sorted["close"].pct_change().abs()
             volume_changes = df_sorted["volume"].pct_change()
-            
+
             # Identify cases where price changes significantly but volume doesn't increase
             price_change_threshold = 0.05  # 5% price change
             significant_price_changes = price_changes > price_change_threshold
-            
+
             # Unusual: big price change with low volume
             unusual_mask = significant_price_changes & (volume_changes < 0)
             unusual_relationships = df_sorted[unusual_mask].index.tolist()
 
-        all_anomalies = list(set(volume_spikes + statistical_outliers + sudden_changes + unusual_relationships))
-        
+        all_anomalies = list(
+            set(
+                volume_spikes
+                + statistical_outliers
+                + sudden_changes
+                + unusual_relationships
+            )
+        )
+
         # Determine severity based on proportion of anomalies
         anomaly_proportion = len(all_anomalies) / len(df) if len(df) > 0 else 0
         if anomaly_proportion > 0.1:  # More than 10% are anomalies
@@ -879,7 +923,7 @@ class AdvancedDataValidator:
             severity = ValidationSeverity.INFO
         else:
             severity = ValidationSeverity.INFO
-            
+
         message = (
             f"Found {len(all_anomalies)} volume anomalies ({anomaly_proportion:.1%} of data)"
             if all_anomalies
@@ -953,15 +997,20 @@ class AdvancedDataValidator:
                             df_features[f"volume_ma_{window}"] = volume_series.rolling(
                                 window
                             ).mean()
-                            
+
                 # Add price momentum features
                 if len(df) > 1:
                     df_sorted = df.sort_values("timestamp")
                     df_features["price_change"] = df_sorted["close"].pct_change()
-                    df_features["price_acceleration"] = df_features["price_change"].diff()
-                    
+                    df_features["price_acceleration"] = df_features[
+                        "price_change"
+                    ].diff()
+
                     # Add volatility features
-                    df_features["volatility"] = df_sorted["close"].rolling(5).std() / df_sorted["close"].rolling(5).mean()
+                    df_features["volatility"] = (
+                        df_sorted["close"].rolling(5).std()
+                        / df_sorted["close"].rolling(5).mean()
+                    )
 
                 # Remove NaN values
                 df_features = df_features.bfill()
@@ -998,10 +1047,10 @@ class AdvancedDataValidator:
 
             # Get anomaly indices
             anomaly_indices = df.index[anomaly_labels == -1].tolist()
-            
+
             # Calculate anomaly proportion
             anomaly_proportion = len(anomaly_indices) / len(df) if len(df) > 0 else 0
-            
+
             # Determine severity based on proportion of anomalies
             if anomaly_proportion > 0.1:  # More than 10% are anomalies
                 severity = ValidationSeverity.ERROR
@@ -1017,7 +1066,7 @@ class AdvancedDataValidator:
                 if anomaly_indices
                 else "No ML anomalies detected"
             )
-            
+
             # Save the trained model for future use
             self.save_ml_model()
 
@@ -1064,34 +1113,40 @@ class AdvancedDataValidator:
             if all(col in df.columns for col in ["open", "high", "low", "close"]):
                 # Use price and volume features
                 features = df[["open", "high", "low", "close"]].copy()
-                
+
                 if "volume" in df.columns:
                     features["volume"] = np.log(df["volume"] + 1e-6)
-                
+
                 # Add derived features
                 features["price_range"] = features["high"] - features["low"]
                 features["body_size"] = np.abs(features["close"] - features["open"])
-                
+
                 # Scale features
                 features_scaled = self.scaler.fit_transform(features)
-                
+
                 # Apply DBSCAN clustering
                 eps = self.rule_engine.get_threshold("dbscan_eps")
                 min_samples = int(self.rule_engine.get_threshold("dbscan_min_samples"))
-                
+
                 dbscan = DBSCAN(eps=eps, min_samples=min_samples)
                 clusters = dbscan.fit_predict(features_scaled)
-                
+
                 # Points labeled as -1 are considered outliers/anomalies
                 anomaly_indices = df.index[clusters == -1].tolist()
-                
+
                 # Calculate cluster statistics
                 unique_clusters = np.unique(clusters)
-                cluster_counts = {int(c): int((clusters == c).sum()) for c in unique_clusters if c != -1}
-                
+                cluster_counts = {
+                    int(c): int((clusters == c).sum())
+                    for c in unique_clusters
+                    if c != -1
+                }
+
                 # Calculate anomaly proportion
-                anomaly_proportion = len(anomaly_indices) / len(df) if len(df) > 0 else 0
-                
+                anomaly_proportion = (
+                    len(anomaly_indices) / len(df) if len(df) > 0 else 0
+                )
+
                 # Determine severity based on proportion of anomalies
                 if anomaly_proportion > 0.1:  # More than 10% are anomalies
                     severity = ValidationSeverity.ERROR
@@ -1101,13 +1156,13 @@ class AdvancedDataValidator:
                     severity = ValidationSeverity.INFO
                 else:
                     severity = ValidationSeverity.INFO
-                
+
                 message = (
                     f"Clustering detected {len(anomaly_indices)} anomalies ({anomaly_proportion:.1%} of data)"
                     if anomaly_indices
                     else "No clustering anomalies detected"
                 )
-                
+
                 return ValidationResult(
                     rule_name="clustering_anomalies",
                     severity=severity,
@@ -1129,7 +1184,7 @@ class AdvancedDataValidator:
                     affected_rows=[],
                     metadata={},
                 )
-                
+
         except Exception as e:
             logger.error("Error in clustering anomaly detection: %s", e)
             return ValidationResult(
@@ -1157,41 +1212,49 @@ class AdvancedDataValidator:
         threshold = self.rule_engine.get_threshold("price_change_threshold")
         sudden_changes = price_changes[price_changes > threshold]
         affected_indices = sudden_changes.index.tolist()
-        
+
         # Calculate additional metrics
         max_change = float(price_changes.max()) if len(price_changes) > 0 else 0
         avg_change = float(price_changes.mean()) if len(price_changes) > 0 else 0
-        
+
         # Check for price reversals (price changes direction frequently)
         if len(df_sorted) > 3:
             price_diff = df_sorted["close"].diff()
-            direction_changes = ((price_diff > 0) != (price_diff.shift(1) > 0))
+            direction_changes = (price_diff > 0) != (price_diff.shift(1) > 0)
             reversal_count = direction_changes.sum()
-            reversal_rate = reversal_count / (len(df_sorted) - 2)  # Exclude first two rows
-            
+            reversal_rate = reversal_count / (
+                len(df_sorted) - 2
+            )  # Exclude first two rows
+
             # High reversal rate might indicate noisy data
-            high_reversal = reversal_rate > 0.5  # More than 50% of points change direction
+            high_reversal = (
+                reversal_rate > 0.5
+            )  # More than 50% of points change direction
         else:
             reversal_count = 0
             reversal_rate = 0
             high_reversal = False
-        
+
         # Determine severity based on findings
-        if len(affected_indices) > len(df) * 0.1 or high_reversal:  # More than 10% have sudden changes
+        if (
+            len(affected_indices) > len(df) * 0.1 or high_reversal
+        ):  # More than 10% have sudden changes
             severity = ValidationSeverity.ERROR
         elif len(affected_indices) > 0:
             severity = ValidationSeverity.WARNING
         else:
             severity = ValidationSeverity.INFO
-            
+
         # Build message
         messages = []
         if len(affected_indices) > 0:
             messages.append(f"Found {len(affected_indices)} sudden price changes")
         if high_reversal:
             messages.append(f"High price reversal rate ({reversal_rate:.1%})")
-            
-        message = "; ".join(messages) if messages else "Price consistency validation passed"
+
+        message = (
+            "; ".join(messages) if messages else "Price consistency validation passed"
+        )
 
         return ValidationResult(
             rule_name="price_consistency",
@@ -1224,27 +1287,33 @@ class AdvancedDataValidator:
 
         # Check for negative volume
         negative_volume = df[df["volume"] < 0].index.tolist()
-        
+
         # Check for NaN volume
         nan_volume = df[df["volume"].isna()].index.tolist()
-        
+
         # Check for volume trends
         if len(df) >= 10:
             df_sorted = df.sort_values("timestamp")
-            
+
             # Calculate rolling statistics
             rolling_mean = df_sorted["volume"].rolling(window=5).mean()
             rolling_std = df_sorted["volume"].rolling(window=5).std()
-            
+
             # Check for declining volume trend
-            volume_trend = np.polyfit(range(len(df_sorted)), df_sorted["volume"].values, 1)[0]
-            declining_volume = volume_trend < 0 and abs(volume_trend) > rolling_mean.mean() * 0.01
-            
+            volume_trend = np.polyfit(
+                range(len(df_sorted)), df_sorted["volume"].values, 1
+            )[0]
+            declining_volume = (
+                volume_trend < 0 and abs(volume_trend) > rolling_mean.mean() * 0.01
+            )
+
             # Check for increasing volatility in volume
             if len(df_sorted) >= 10:
-                early_std = df_sorted["volume"].iloc[:len(df_sorted)//2].std()
-                late_std = df_sorted["volume"].iloc[len(df_sorted)//2:].std()
-                increasing_volatility = late_std > early_std * 1.5  # 50% increase in volatility
+                early_std = df_sorted["volume"].iloc[: len(df_sorted) // 2].std()
+                late_std = df_sorted["volume"].iloc[len(df_sorted) // 2 :].std()
+                increasing_volatility = (
+                    late_std > early_std * 1.5
+                )  # 50% increase in volatility
             else:
                 increasing_volatility = False
         else:
@@ -1264,14 +1333,14 @@ class AdvancedDataValidator:
         if negative_volume:
             issues.append(f"{len(negative_volume)} negative volume entries")
             affected_rows.extend(negative_volume)
-            
+
         if nan_volume:
             issues.append(f"{len(nan_volume)} NaN volume entries")
             affected_rows.extend(nan_volume)
-            
+
         if declining_volume:
             issues.append("Declining volume trend")
-            
+
         if increasing_volatility:
             issues.append("Increasing volume volatility")
 
@@ -1288,7 +1357,7 @@ class AdvancedDataValidator:
             severity = ValidationSeverity.INFO
         else:
             severity = ValidationSeverity.INFO
-            
+
         message = (
             "; ".join(issues) if issues else "Volume consistency validation passed"
         )

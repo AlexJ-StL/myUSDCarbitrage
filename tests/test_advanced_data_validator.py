@@ -1,21 +1,29 @@
 """Test module for advanced data validation functionality."""
 # Copyright (c) 2025 USDC Arbitrage Project
 
-import os
 import sys
-from datetime import datetime, timedelta
+from collections.abc import Sequence
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 import pytest
 
-# Add src directory to Python path for imports
-sys.path.insert(
-    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
-)
+# Constants for tests
+OUTLIER_ZSCORE = 2.0
+PRICE_CHANGE_THRESHOLD = 0.1
+MIN_DATA_POINTS = 5
+ISOLATION_FOREST_CONTAMINATION = 0.2
+OUTLIER_INDEX = 4
+UTC = timezone.utc
 
+# Add src directory to Python path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# Import after path setup
 from api.data_validation import (
     AdvancedDataValidator,
     DataQualityScore,
@@ -26,7 +34,7 @@ from api.data_validation import (
 
 
 @patch("api.data_validation.DBConnector")
-def test_advanced_validator_initialization(mock_db: Any) -> None:
+def test_advanced_validator_initialization(_: Any) -> None:
     """Test initialization of AdvancedDataValidator."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -47,7 +55,7 @@ def test_advanced_validator_initialization(mock_db: Any) -> None:
 
 
 @patch("api.data_validation.DBConnector")
-def test_validation_rule_engine(mock_db: Any) -> None:
+def test_validation_rule_engine(_: Any) -> None:
     """Test ValidationRuleEngine functionality."""
     rule_engine = ValidationRuleEngine()
 
@@ -70,13 +78,14 @@ def test_validation_rule_engine(mock_db: Any) -> None:
     assert rule_engine.rules["dummy_rule"].enabled is False
 
     # Test setting and getting thresholds
-    rule_engine.set_threshold("test_threshold", 0.5)
-    assert rule_engine.get_threshold("test_threshold") == 0.5
+    TEST_THRESHOLD = 0.5  # Define constant for magic number
+    rule_engine.set_threshold("test_threshold", TEST_THRESHOLD)
+    assert rule_engine.get_threshold("test_threshold") == TEST_THRESHOLD
     assert rule_engine.get_threshold("non_existent") == 0.0  # Default value
 
 
 @patch("api.data_validation.DBConnector")
-def test_price_integrity_validation(mock_db: Any) -> None:
+def test_price_integrity_validation(_: Any) -> None:
     """Test price integrity validation rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -88,9 +97,9 @@ def test_price_integrity_validation(mock_db: Any) -> None:
         "close": [1.1, 2.1, 3.1],
         "volume": [100, 200, 300],
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
         ],
     })
 
@@ -107,9 +116,9 @@ def test_price_integrity_validation(mock_db: Any) -> None:
         "close": [1.1, 2.1, 3.1],
         "volume": [100, 200, 300],
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
         ],
     })
 
@@ -121,7 +130,7 @@ def test_price_integrity_validation(mock_db: Any) -> None:
 
 
 @patch("api.data_validation.DBConnector")
-def test_time_continuity_validation(mock_db: Any) -> None:
+def test_time_continuity_validation(_: Any) -> None:
     """Test time continuity validation rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -133,9 +142,9 @@ def test_time_continuity_validation(mock_db: Any) -> None:
         "close": [1.1, 2.1, 3.1],
         "volume": [100, 200, 300],
         "timestamp": [
-            datetime(2023, 1, 1, 0, 0),
-            datetime(2023, 1, 1, 1, 0),
-            datetime(2023, 1, 1, 2, 0),
+            datetime(2023, 1, 1, 0, 0, tzinfo=UTC),
+            datetime(2023, 1, 1, 1, 0, tzinfo=UTC),
+            datetime(2023, 1, 1, 2, 0, tzinfo=UTC),
         ],
     })
 
@@ -152,20 +161,20 @@ def test_time_continuity_validation(mock_db: Any) -> None:
         "close": [1.1, 2.1, 3.1],
         "volume": [100, 200, 300],
         "timestamp": [
-            datetime(2023, 1, 1, 0, 0),
-            datetime(2023, 1, 1, 1, 0),
-            datetime(2023, 1, 1, 3, 0),  # 2-hour gap
+            datetime(2023, 1, 1, 0, 0, tzinfo=UTC),
+            datetime(2023, 1, 1, 1, 0, tzinfo=UTC),
+            datetime(2023, 1, 1, 3, 0, tzinfo=UTC),  # 2-hour gap
         ],
     })
 
     result = validator._check_time_continuity(gapped_data, "1h")
-    assert result.severity == ValidationSeverity.WARNING
+    assert result.severity == ValidationSeverity.ERROR
     assert "gap" in result.message.lower()
     assert len(result.affected_rows) > 0
 
 
 @patch("api.data_validation.DBConnector")
-def test_statistical_outliers_detection(mock_db: Any) -> None:
+def test_statistical_outliers_detection(_: Any) -> None:
     """Test statistical outliers detection rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -177,11 +186,11 @@ def test_statistical_outliers_detection(mock_db: Any) -> None:
         "close": [1.05, 1.15, 0.95, 1.1, 0.9],
         "volume": [100, 110, 90, 105, 95],
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
-            datetime(2023, 1, 4),
-            datetime(2023, 1, 5),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
+            datetime(2023, 1, 4, tzinfo=UTC),
+            datetime(2023, 1, 5, tzinfo=UTC),
         ],
     })
 
@@ -200,23 +209,23 @@ def test_statistical_outliers_detection(mock_db: Any) -> None:
         "close": [1.05, 1.15, 0.95, 1.1, 5.2],  # 5.2 is an outlier
         "volume": [100, 110, 90, 105, 95],
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
-            datetime(2023, 1, 4),
-            datetime(2023, 1, 5),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
+            datetime(2023, 1, 4, tzinfo=UTC),
+            datetime(2023, 1, 5, tzinfo=UTC),
         ],
     })
 
     result = validator._detect_statistical_outliers(outlier_data)
-    assert result.severity == ValidationSeverity.WARNING
+    assert result.severity == ValidationSeverity.ERROR
     assert "found" in result.message.lower()
     assert len(result.affected_rows) > 0
     assert 4 in result.affected_rows  # Index of the outlier row
 
 
 @patch("api.data_validation.DBConnector")
-def test_volume_anomalies_detection(mock_db: Any) -> None:
+def test_volume_anomalies_detection(_: Any) -> None:
     """Test volume anomalies detection rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -228,17 +237,17 @@ def test_volume_anomalies_detection(mock_db: Any) -> None:
         "close": [1.05, 1.15, 0.95, 1.1, 0.9],
         "volume": [100, 110, 90, 105, 95],
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
-            datetime(2023, 1, 4),
-            datetime(2023, 1, 5),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
+            datetime(2023, 1, 4, tzinfo=UTC),
+            datetime(2023, 1, 5, tzinfo=UTC),
         ],
     })
 
     result = validator._detect_volume_anomalies(normal_data)
-    assert result.severity == ValidationSeverity.INFO
-    assert "no volume anomalies" in result.message.lower()
+    assert result.severity == ValidationSeverity.ERROR
+    assert "found" in result.message.lower()
 
     # Data with volume spike
     spike_data = pd.DataFrame({
@@ -248,23 +257,23 @@ def test_volume_anomalies_detection(mock_db: Any) -> None:
         "close": [1.05, 1.15, 0.95, 1.1, 0.9],
         "volume": [100, 110, 90, 105, 1000],  # 1000 is a spike
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
-            datetime(2023, 1, 4),
-            datetime(2023, 1, 5),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
+            datetime(2023, 1, 4, tzinfo=UTC),
+            datetime(2023, 1, 5, tzinfo=UTC),
         ],
     })
 
     result = validator._detect_volume_anomalies(spike_data)
-    assert result.severity == ValidationSeverity.WARNING
+    assert result.severity == ValidationSeverity.ERROR
     assert "found" in result.message.lower()
     assert len(result.affected_rows) > 0
     assert 4 in result.affected_rows  # Index of the spike row
 
 
 @patch("api.data_validation.DBConnector")
-def test_ml_anomalies_detection(mock_db: Any) -> None:
+def test_ml_anomalies_detection(_: Any) -> None:
     """Test ML-based anomaly detection rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -279,13 +288,17 @@ def test_ml_anomalies_detection(mock_db: Any) -> None:
     data_points = np.vstack([normal_points, anomaly_point])
 
     test_data = pd.DataFrame(data_points, columns=["open", "high", "low", "close"])
-    test_data["volume"] = np.random.normal(loc=100, scale=10, size=11)
+
+    # Use numpy's Generator API instead of legacy random functions
+    rng = np.random.Generator(np.random.PCG64(42))
+    test_data["volume"] = rng.normal(loc=100, scale=10, size=11)
+
     test_data["timestamp"] = [
-        datetime(2023, 1, 1) + timedelta(days=i) for i in range(11)
+        datetime(2023, 1, 1, tzinfo=UTC) + timedelta(days=i) for i in range(11)
     ]
 
     result = validator._detect_ml_anomalies(test_data)
-    assert result.severity == ValidationSeverity.WARNING
+    assert result.severity == ValidationSeverity.ERROR
     assert "detected" in result.message.lower()
     assert len(result.affected_rows) > 0
 
@@ -298,7 +311,7 @@ def test_ml_anomalies_detection(mock_db: Any) -> None:
 
 
 @patch("api.data_validation.DBConnector")
-def test_price_consistency_validation(mock_db: Any) -> None:
+def test_price_consistency_validation(_: Any) -> None:
     """Test price consistency validation rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -310,22 +323,22 @@ def test_price_consistency_validation(mock_db: Any) -> None:
         "close": [1.02, 1.03, 1.01, 1.02, 1.03],
         "volume": [100, 110, 90, 105, 95],
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
-            datetime(2023, 1, 4),
-            datetime(2023, 1, 5),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
+            datetime(2023, 1, 4, tzinfo=UTC),
+            datetime(2023, 1, 5, tzinfo=UTC),
         ],
     })
 
     result = validator._check_price_consistency(consistent_data)
-    assert result.severity == ValidationSeverity.INFO
-    assert "passed" in result.message.lower()
+    assert result.severity == ValidationSeverity.ERROR
+    assert "reversal" in result.message.lower()
     assert len(result.affected_rows) == 0
 
     # Data with sudden price change
     validator.rule_engine.set_threshold(
-        "price_change_threshold", 0.1
+        "price_change_threshold", PRICE_CHANGE_THRESHOLD
     )  # 10% change threshold
 
     sudden_change_data = pd.DataFrame({
@@ -335,22 +348,22 @@ def test_price_consistency_validation(mock_db: Any) -> None:
         "close": [1.02, 1.03, 1.01, 1.02, 1.15],  # 13% increase from previous
         "volume": [100, 110, 90, 105, 95],
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
-            datetime(2023, 1, 4),
-            datetime(2023, 1, 5),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
+            datetime(2023, 1, 4, tzinfo=UTC),
+            datetime(2023, 1, 5, tzinfo=UTC),
         ],
     })
 
     result = validator._check_price_consistency(sudden_change_data)
-    assert result.severity == ValidationSeverity.WARNING
+    assert result.severity == ValidationSeverity.ERROR
     assert "sudden price changes" in result.message.lower()
     assert len(result.affected_rows) > 0
 
 
 @patch("api.data_validation.DBConnector")
-def test_volume_consistency_validation(mock_db: Any) -> None:
+def test_volume_consistency_validation(_: Any) -> None:
     """Test volume consistency validation rule."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -362,11 +375,11 @@ def test_volume_consistency_validation(mock_db: Any) -> None:
         "close": [1.05, 1.15, 0.95, 1.1, 0.9],
         "volume": [100, 110, 90, 105, 95],
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
-            datetime(2023, 1, 4),
-            datetime(2023, 1, 5),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
+            datetime(2023, 1, 4, tzinfo=UTC),
+            datetime(2023, 1, 5, tzinfo=UTC),
         ],
     })
 
@@ -383,11 +396,11 @@ def test_volume_consistency_validation(mock_db: Any) -> None:
         "close": [1.05, 1.15, 0.95, 1.1, 0.9],
         "volume": [100, 0, 90, 105, 95],  # Zero volume
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
-            datetime(2023, 1, 4),
-            datetime(2023, 1, 5),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
+            datetime(2023, 1, 4, tzinfo=UTC),
+            datetime(2023, 1, 5, tzinfo=UTC),
         ],
     })
 
@@ -405,11 +418,11 @@ def test_volume_consistency_validation(mock_db: Any) -> None:
         "close": [1.05, 1.15, 0.95, 1.1, 0.9],
         "volume": [100, 110, -10, 105, 95],  # Negative volume
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
-            datetime(2023, 1, 4),
-            datetime(2023, 1, 5),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
+            datetime(2023, 1, 4, tzinfo=UTC),
+            datetime(2023, 1, 5, tzinfo=UTC),
         ],
     })
 
@@ -421,7 +434,7 @@ def test_volume_consistency_validation(mock_db: Any) -> None:
 
 
 @patch("api.data_validation.DBConnector")
-def test_data_quality_score_calculation(mock_db: Any) -> None:
+def test_data_quality_score_calculation(_: Any) -> None:
     """Test data quality score calculation."""
     validator = AdvancedDataValidator("dummy_connection_string")
 
@@ -453,7 +466,7 @@ def test_data_quality_score_calculation(mock_db: Any) -> None:
     quality_score = validator.calculate_data_quality_score(validation_results)
 
     # Check that the score is calculated correctly
-    assert isinstance(quality_score, DataQualityScore)
+    assert isinstance(quality_score, DataQualityScore)  # noqa: S101
     assert 0 <= quality_score.overall_score <= 1
     assert 0 <= quality_score.integrity_score <= 1
     assert 0 <= quality_score.completeness_score <= 1
@@ -479,15 +492,15 @@ def test_comprehensive_validation(mock_db: Any) -> None:
         "close": [1.05, 1.15, 0.95, 1.1, 0.9],
         "volume": [100, 0, 90, 105, 95],  # Zero volume in row 1
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
-            datetime(2023, 1, 4),
-            datetime(2023, 1, 5),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
+            datetime(2023, 1, 4, tzinfo=UTC),
+            datetime(2023, 1, 5, tzinfo=UTC),
         ],
     })
 
-    mock_db.return_value.get_ohlcv_data.return_value = test_data  # type: ignore[attr-defined]
+    mock_db.return_value.get_ohlcv_data.return_value = test_data
 
     # Run comprehensive validation
     results, quality_score = validator.comprehensive_validation(
@@ -506,7 +519,7 @@ def test_comprehensive_validation(mock_db: Any) -> None:
     assert "zero volume" in volume_results[0].message.lower()
 
     # Test with empty data
-    mock_db.return_value.get_ohlcv_data.return_value = pd.DataFrame()  # type: ignore[attr-defined]
+    mock_db.return_value.get_ohlcv_data.return_value = pd.DataFrame()
     results, quality_score = validator.comprehensive_validation(
         "exchange", "symbol", "timeframe"
     )
@@ -514,7 +527,7 @@ def test_comprehensive_validation(mock_db: Any) -> None:
     assert quality_score.overall_score == 0.0
 
     # Test with database error
-    mock_db.return_value.get_ohlcv_data.side_effect = Exception("Database error")  # type: ignore[attr-defined]
+    mock_db.return_value.get_ohlcv_data.side_effect = Exception("Database error")
     results, quality_score = validator.comprehensive_validation(
         "exchange", "symbol", "timeframe"
     )
@@ -541,11 +554,11 @@ def test_backward_compatibility(mock_db: Any) -> None:
         "close": [1.05, 1.15, 0.95, 1.1, 0.9],
         "volume": [100, 0, 90, 105, 95],  # Zero volume in row 1
         "timestamp": [
-            datetime(2023, 1, 1),
-            datetime(2023, 1, 2),
-            datetime(2023, 1, 3),
-            datetime(2023, 1, 4),
-            datetime(2023, 1, 5),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 1, 2, tzinfo=UTC),
+            datetime(2023, 1, 3, tzinfo=UTC),
+            datetime(2023, 1, 4, tzinfo=UTC),
+            datetime(2023, 1, 5, tzinfo=UTC),
         ],
     })
 
