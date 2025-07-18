@@ -261,14 +261,23 @@
   - _Requirements: 7.1, 7.2_
 
 - [ ] 8. Advanced Analytics and Reporting
-- [ ] 8.1 Performance Visualization System
+
+
+
+
+- [x] 8.1 Performance Visualization System
+
+
+
   - Create interactive charts for strategy performance using Plotly
   - Implement portfolio analytics dashboard with drill-down capabilities
   - Add risk analysis visualizations including drawdown charts and correlation matrices
   - Create comparative analysis tools for strategy benchmarking
   - _Requirements: 8.1, 8.3_
 
-- [ ] 8.2 Risk Management Analytics
+- [x] 8.2 Risk Management Analytics
+
+
   - Implement advanced risk metrics calculation including VaR and CVaR
   - Create portfolio risk attribution analysis
   - Add stress testing capabilities with historical scenario analysis

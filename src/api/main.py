@@ -25,6 +25,7 @@ from .routers import (
     results,
     strategies,
     versioned_example,
+    visualization,
     websocket,
 )
 from ..monitoring.scheduler import start_monitoring, stop_monitoring
@@ -116,6 +117,10 @@ app = FastAPI(
             "description": "Backtest results and analysis",
         },
         {
+            "name": "visualization",
+            "description": "Interactive visualizations and analytics",
+        },
+        {
             "name": "data",
             "description": "Market data operations",
         },
@@ -175,6 +180,7 @@ app.include_router(data_export.router)
 app.include_router(strategies.router)
 app.include_router(backtest.router)
 app.include_router(results.router)
+app.include_router(visualization.router)
 app.include_router(websocket.router)
 
 # Include versioned routers
