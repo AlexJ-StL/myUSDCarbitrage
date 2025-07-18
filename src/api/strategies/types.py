@@ -150,8 +150,8 @@ class ArbitrageStrategy(BaseStrategy):
                 continue
 
             # Find lowest and highest prices
-            lowest_exchange = min(exchange_prices, key=exchange_prices.get)
-            highest_exchange = max(exchange_prices, key=exchange_prices.get)
+            lowest_exchange = min(exchange_prices, key=lambda x: exchange_prices[x])
+            highest_exchange = max(exchange_prices, key=lambda x: exchange_prices[x])
 
             lowest_price = exchange_prices[lowest_exchange]
             highest_price = exchange_prices[highest_exchange]

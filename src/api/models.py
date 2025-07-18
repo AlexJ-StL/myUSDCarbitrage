@@ -14,6 +14,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -362,3 +363,148 @@ class ABTest(Base):
     # Relationships
     strategy_a = relationship("Strategy", foreign_keys=[strategy_a_id])
     strategy_b = relationship("Strategy", foreign_keys=[strategy_b_id])
+
+
+# Authentication and User Management Models
+class User(Base):
+    """SQLAlchemy model for users."""
+
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True)
+    is_verified = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    last_login = Column(DateTime, nullable=True)
+
+    # Relationships
+    roles = relationship("UserRole", back_populates="user")
+    refresh_tokens = relationship("RefreshToken", back_populates="user")
+
+
+class Role(Base):
+    """SQLAlchemy model for roles."""
+
+    __tablename__ = "roles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True, index=True, nullable=False)
+    description = Column(Text, nullable=True)
+    permissions = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime, default=datetime.now)
+
+    # Relationships
+    users = relationship("UserRole", back_populates="role")
+
+
+class UserRole(Base):
+    """SQLAlchemy model for user-role associations."""
+
+    __tablename__ = "user_roles"
+
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    role_id = Column(Integer, ForeignKey("roles.id"), primary_key=True)
+    assigned_at = Column(DateTime, default=datetime.now)
+
+    # Relationships
+    user = relationship("User", back_populates="roles")
+    role = relationship("Role", back_populates="users")
+
+
+class RefreshToken(Base):
+    """SQLAlchemy model for refresh tokens."""
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String(255), unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    is_revoked = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.now)
+    revoked_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    user = relationship("User", back_populates="refresh_tokens")
+
+
+class TokenBlacklist(Base):
+    """SQLAlchemy model for blacklisted tokens."""
+
+    __tablename__ = "token_blacklist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    jti = Column(String(255), unique=True, index=True, nullable=False)  # JWT ID
+    token_type = Column(String(20), nullable=False)  # 'access' or 'refresh'
+    expires_at = Column(DateTime, nullable=False)
+    blacklisted_at = Column(DateTime, default=datetime.now)
+    reason = Column(String(100), nullable=True)  # logout, revoked, etc.
+
+
+# Pydantic models for authentication
+class UserCreate(BaseModel):
+    """Pydantic model for user creation."""
+
+    username: str = Field(..., min_length=3, max_length=50, pattern="^[a-zA-Z0-9_]+$")
+    email: str = Field(..., pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+    password: str = Field(..., min_length=8, max_length=100)
+
+
+class UserLogin(BaseModel):
+    """Pydantic model for user login."""
+
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=1, max_length=100)
+
+
+class UserResponse(BaseModel):
+    """Pydantic model for user response."""
+
+    id: int
+    username: str
+    email: str
+    is_active: bool
+    is_verified: bool
+    created_at: datetime
+    last_login: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TokenResponse(BaseModel):
+    """Pydantic model for token response."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class TokenRefresh(BaseModel):
+    """Pydantic model for token refresh."""
+
+    refresh_token: str
+
+
+class RoleCreate(BaseModel):
+    """Pydantic model for role creation."""
+
+    name: str = Field(..., min_length=1, max_length=50)
+    description: Optional[str] = None
+    permissions: List[str] = Field(default_factory=list)
+
+
+class RoleResponse(BaseModel):
+    """Pydantic model for role response."""
+
+    id: int
+    name: str
+    description: Optional[str] = None
+    permissions: List[str]
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

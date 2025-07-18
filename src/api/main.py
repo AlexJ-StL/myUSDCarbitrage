@@ -3,9 +3,10 @@
 from fastapi import FastAPI
 
 from .database import Base, engine
-from .routers import backtest, data, results, strategies
+from .routers import auth, backtest, data, results, strategies
 
-Base.metadata.create_all(bind=engine)
+# Note: Database tables should be created using the init_auth.py script
+# Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="USDC Arbitrage Backtesting API",
@@ -13,6 +14,7 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.include_router(auth.router)
 app.include_router(data.router)
 app.include_router(strategies.router)
 app.include_router(backtest.router)
