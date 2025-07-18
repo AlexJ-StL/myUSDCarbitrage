@@ -11,7 +11,20 @@ from .audit_logging import AuditLoggingMiddleware
 from .database import Base, engine, get_db
 from .encryption import EncryptionMiddleware
 from .rate_limiting import EnhancedRateLimiter, RateLimitMiddleware
-from .routers import admin, api_keys, auth, backtest, data, results, strategies
+from .routers import (
+    admin,
+    api_keys,
+    auth,
+    backtest,
+    data,
+    health,
+    logging as logging_router,
+    monitoring,
+    results,
+    strategies,
+)
+from ..monitoring.scheduler import start_monitoring, stop_monitoring
+from ..monitoring.logging_config import setup_logging
 
 
 @asynccontextmanager
@@ -20,14 +33,39 @@ async def lifespan(app: FastAPI):
     # Startup
     print("Starting USDC Arbitrage Backtesting API...")
 
+    # Setup centralized logging
+    log_level = os.getenv("LOG_LEVEL", "INFO")
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    log_file = os.getenv("LOG_FILE", "logs/app.log")
+
+    # Ensure log directory exists
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+    # Initialize logging
+    setup_logging(
+        log_level=log_level,
+        enable_redis_logging=True,
+        redis_url=redis_url,
+        log_file=log_file,
+    )
+    print(f"Centralized logging initialized with level {log_level}")
+
     # Create database tables if they don't exist
     # Note: In production, use proper database migrations
     Base.metadata.create_all(bind=engine)
+
+    # Start monitoring scheduler
+    await start_monitoring()
+    print("Monitoring scheduler started")
 
     yield
 
     # Shutdown
     print("Shutting down USDC Arbitrage Backtesting API...")
+
+    # Stop monitoring scheduler
+    await stop_monitoring()
+    print("Monitoring scheduler stopped")
 
 
 app = FastAPI(
@@ -59,6 +97,9 @@ app.add_middleware(AuditLoggingMiddleware, db_session_factory=get_db)
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(api_keys.router)
+app.include_router(health.router)
+app.include_router(monitoring.router)
+app.include_router(logging_router.router)
 app.include_router(data.router)
 app.include_router(strategies.router)
 app.include_router(backtest.router)
