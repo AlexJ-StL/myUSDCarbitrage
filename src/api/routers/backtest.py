@@ -20,6 +20,10 @@ from ..backtesting import (
     SlippageModel,
 )
 from ..database import get_db
+from ..security import (
+    get_current_active_user,
+    require_permissions,
+)
 from ..strategies import get_strategy_by_id
 
 # Configure logging
@@ -103,6 +107,7 @@ class BacktestResponse(BaseModel):
 @router.post("/backtest/", response_model=BacktestResponse)
 def run_backtest(
     request: BacktestRequest,
+    current_user: models.User = Depends(require_permissions(["create:backtest"])),
     db: Session = Depends(get_db),
 ):
     """Execute a backtest for a given strategy and parameters."""
@@ -234,6 +239,9 @@ def run_backtest(
 @router.get("/backtest/{backtest_id}", response_model=BacktestResponse)
 def get_backtest(
     backtest_id: int,
+    current_user: models.User = Depends(
+        require_permissions(["read:backtest", "read:own_backtest"])
+    ),
     db: Session = Depends(get_db),
 ):
     """Get backtest results by ID."""
@@ -263,6 +271,9 @@ def list_backtests(
     status: Optional[str] = None,
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    current_user: models.User = Depends(
+        require_permissions(["read:backtest", "read:own_backtest"])
+    ),
     db: Session = Depends(get_db),
 ):
     """List backtests with optional filtering."""

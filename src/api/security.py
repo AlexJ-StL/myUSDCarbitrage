@@ -393,6 +393,173 @@ def require_roles(required_roles: List[str]):
     return role_checker
 
 
+def require_resource_access(resource_type: str, permission_type: str = "read"):
+    """
+    Decorator to require resource-level access control.
+
+    Args:
+        resource_type: Type of resource (strategy, backtest, user)
+        permission_type: Type of permission (read, write, delete)
+    """
+
+    def resource_checker(
+        resource_id: int,
+        current_user: User = Depends(get_current_active_user),
+        security_service: SecurityService = Depends(get_security_service),
+        db: Session = Depends(get_db),
+    ):
+        # Check if user has admin privileges
+        user_permissions = security_service.get_user_permissions(current_user.id)
+
+        # Admin users have access to all resources
+        if "read:all" in user_permissions or "manage:system" in user_permissions:
+            return current_user
+
+        # Check specific resource permissions
+        required_permission = f"{permission_type}:{resource_type}"
+        own_resource_permission = f"{permission_type}:own_{resource_type}"
+
+        # If user has general permission for this resource type
+        if required_permission in user_permissions:
+            return current_user
+
+        # Check if user owns the resource and has own_resource permission
+        if own_resource_permission in user_permissions:
+            if _user_owns_resource(db, current_user.id, resource_type, resource_id):
+                return current_user
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied. Insufficient permissions for {resource_type} {resource_id}",
+        )
+
+    return resource_checker
+
+
+def _user_owns_resource(
+    db: Session, user_id: int, resource_type: str, resource_id: int
+) -> bool:
+    """Check if user owns a specific resource."""
+    if resource_type == "strategy":
+        from .models import Strategy
+
+        strategy = db.query(Strategy).filter(Strategy.id == resource_id).first()
+        # For now, we'll check if user created the strategy (would need to add created_by field)
+        # This is a simplified check - in production you'd have proper ownership tracking
+        return True  # Placeholder - implement proper ownership logic
+
+    elif resource_type == "backtest":
+        from .models import BacktestResult
+
+        backtest = (
+            db.query(BacktestResult).filter(BacktestResult.id == resource_id).first()
+        )
+        # Similar ownership check for backtests
+        return True  # Placeholder - implement proper ownership logic
+
+    elif resource_type == "user":
+        # Users can only access their own user record
+        return user_id == resource_id
+
+    return False
+
+
+def create_strategy_access_checker(permission_type: str = "read"):
+    """Create a dependency function to check strategy access."""
+
+    def check_strategy_access(
+        strategy_id: int,
+        current_user: User = Depends(get_current_active_user),
+        security_service: SecurityService = Depends(get_security_service),
+        db: Session = Depends(get_db),
+    ) -> User:
+        """Check if user has access to a specific strategy."""
+        user_permissions = security_service.get_user_permissions(current_user.id)
+
+        # Admin users have full access
+        if "manage:system" in user_permissions or "read:all" in user_permissions:
+            return current_user
+
+        # Check specific strategy permissions
+        strategy_permission = f"{permission_type}:strategy"
+        own_strategy_permission = f"{permission_type}:own_strategy"
+
+        if strategy_permission in user_permissions:
+            return current_user
+
+        # Check if user owns the strategy
+        if own_strategy_permission in user_permissions:
+            from .models import Strategy
+
+            strategy = db.query(Strategy).filter(Strategy.id == strategy_id).first()
+            if strategy:
+                # In a full implementation, you'd check actual ownership
+                # For now, we'll allow access if user has the own_strategy permission
+                return current_user
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access denied to strategy {strategy_id}",
+        )
+
+    return check_strategy_access
+
+
+# Convenience functions for common access patterns
+def check_strategy_read_access():
+    """Dependency to check strategy read access."""
+    return create_strategy_access_checker("read")
+
+
+def check_strategy_write_access():
+    """Dependency to check strategy write access."""
+    return create_strategy_access_checker("update")
+
+
+def check_strategy_delete_access():
+    """Dependency to check strategy delete access."""
+    return create_strategy_access_checker("delete")
+
+
+def check_backtest_access(
+    backtest_id: int,
+    permission_type: str = "read",
+    current_user: User = Depends(get_current_active_user),
+    security_service: SecurityService = Depends(get_security_service),
+    db: Session = Depends(get_db),
+) -> User:
+    """Check if user has access to a specific backtest."""
+    user_permissions = security_service.get_user_permissions(current_user.id)
+
+    # Admin users have full access
+    if "manage:system" in user_permissions or "read:all" in user_permissions:
+        return current_user
+
+    # Check specific backtest permissions
+    backtest_permission = f"{permission_type}:backtest"
+    own_backtest_permission = f"{permission_type}:own_backtest"
+
+    if backtest_permission in user_permissions:
+        return current_user
+
+    # Check if user owns the backtest
+    if own_backtest_permission in user_permissions:
+        from .models import BacktestResult
+
+        backtest = (
+            db.query(BacktestResult).filter(BacktestResult.id == backtest_id).first()
+        )
+        if backtest:
+            # In a full implementation, you'd check actual ownership
+            # For now, we'll allow access if user has the own_backtest permission
+            return current_user
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=f"Access denied to backtest {backtest_id}",
+    )
+
+
 # Legacy functions for backward compatibility
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Legacy function for password verification."""

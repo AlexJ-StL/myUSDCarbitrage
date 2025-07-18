@@ -508,3 +508,8 @@ class RoleResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Import audit logging and API key models to ensure they're included in the database schema
+from .audit_logging import AuditLog
+from .api_keys import APIKey

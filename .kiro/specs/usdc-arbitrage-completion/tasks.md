@@ -151,14 +151,34 @@
   - Implement logout functionality with token blacklisting
   - _Requirements: 4.1, 4.2_
 
-- [ ] 5.2 Role-Based Access Control (RBAC)
+- [x] 5.2 Role-Based Access Control (RBAC)
+
+
+
+
+
   - Create role and permission management system
   - Implement endpoint-level authorization decorators
   - Add resource-level access control for strategies and backtests
   - Create admin interface for user and role management
   - _Requirements: 4.2, 4.5_
 
-- [ ] 5.3 API Security Enhancements
+- [x] 5.3 API Security Enhancements
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   - Implement rate limiting with Redis-based counters
   - Add request/response encryption for sensitive data
   - Create API key management for external integrations

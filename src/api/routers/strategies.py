@@ -10,6 +10,13 @@ from sqlalchemy.orm import Session
 
 from .. import models
 from ..database import get_db
+from ..security import (
+    check_strategy_read_access,
+    check_strategy_write_access,
+    check_strategy_delete_access,
+    get_current_active_user,
+    require_permissions,
+)
 from ..strategies.comparison import StrategyComparison
 from ..strategies.manager import StrategyManager
 from ..strategies.types import STRATEGY_TYPES, get_strategy_template
@@ -89,6 +96,7 @@ class ABTestRequest(BaseModel):
 async def create_strategy(
     request: StrategyCreateRequest,
     author: str = Query("api", description="Author name"),
+    current_user: models.User = Depends(require_permissions(["create:strategy"])),
     db: Session = Depends(get_db),
 ):
     """Create a new strategy."""
@@ -167,6 +175,9 @@ async def list_strategies(
 async def get_strategy(
     strategy_id: int,
     include_code: bool = Query(False, description="Include strategy code"),
+    current_user: models.User = Depends(
+        require_permissions(["read:strategy", "read:own_strategy"])
+    ),
     db: Session = Depends(get_db),
 ):
     """Get strategy by ID."""
@@ -209,6 +220,9 @@ async def update_strategy(
     strategy_id: int,
     request: StrategyUpdateRequest,
     author: str = Query("api", description="Author name"),
+    current_user: models.User = Depends(
+        require_permissions(["update:strategy", "update:own_strategy"])
+    ),
     db: Session = Depends(get_db),
 ):
     """Update an existing strategy."""
@@ -245,6 +259,9 @@ async def update_strategy(
 @router.delete("/{strategy_id}")
 async def delete_strategy(
     strategy_id: int,
+    current_user: models.User = Depends(
+        require_permissions(["delete:strategy", "delete:own_strategy"])
+    ),
     db: Session = Depends(get_db),
 ):
     """Delete a strategy."""
