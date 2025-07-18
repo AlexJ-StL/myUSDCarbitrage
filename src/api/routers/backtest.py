@@ -1,12 +1,15 @@
 """Backtest router for USDC arbitrage API."""
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+
+from .websocket import send_backtest_update
 
 from .. import models
 from ..backtesting import (
@@ -107,6 +110,7 @@ class BacktestResponse(BaseModel):
 @router.post("/backtest/", response_model=BacktestResponse)
 def run_backtest(
     request: BacktestRequest,
+    background_tasks: BackgroundTasks,
     current_user: models.User = Depends(require_permissions(["create:backtest"])),
     db: Session = Depends(get_db),
 ):
@@ -202,7 +206,19 @@ def run_backtest(
             backtest_record.status = "completed"
             backtest_record.results = results
             backtest_record.metrics = results.get("metrics", {})
+            backtest_record.completed_at = datetime.now()
             db.commit()
+
+            # Send WebSocket notification
+            background_tasks.add_task(
+                send_backtest_update,
+                backtest_record.id,
+                {
+                    "status": "completed",
+                    "progress": 100.0,
+                    "metrics": backtest_record.metrics,
+                },
+            )
 
             # Return response
             return BacktestResponse(
@@ -219,7 +235,15 @@ def run_backtest(
             logger.error(f"Backtest execution error: {e}")
             backtest_record.status = "failed"
             backtest_record.error_message = str(e)
+            backtest_record.completed_at = datetime.now()
             db.commit()
+
+            # Send WebSocket notification
+            background_tasks.add_task(
+                send_backtest_update,
+                backtest_record.id,
+                {"status": "failed", "error": str(e)},
+            )
 
             raise HTTPException(
                 status_code=500,
