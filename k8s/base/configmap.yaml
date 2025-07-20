@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: usdc-arbitrage-config
+data:
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+  REFRESH_TOKEN_EXPIRE_DAYS: "7"
+  DB_HOST: "postgres-service"
+  DB_NAME: "usdc_arbitrage"
+  DB_USER: "arb_user"
+  RATE_LIMIT_PER_MINUTE: "100"
