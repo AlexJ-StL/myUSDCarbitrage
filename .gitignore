@@ -104,6 +104,8 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
 .venv
 env/
 venv/
@@ -135,8 +137,11 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# VS Code
+# IDE settings
 .vscode/
+.idea/
+*.swp
+*.swo
 
 # Databases
 *.sqlite
@@ -162,16 +167,25 @@ historical_data/
 *.parquet
 *.hdf5
 *.json
+!package.json
+!package-lock.json
+!tsconfig.json
 
 # Reports
 *.html
-*.json
+reports/
 
 # SSL Certificates
 *.pem
 *.key
+*.crt
 
-# Supplimentary Development Docs
-.dev\*
-.dev\directory_tree_2025-06-29
-.dev\USDC arbitrage backtesting project.md
+# Development files
+.dev/
+test_*.db
+
+# Kiro specific files
+.kiro/
+
+# Lock files
+uv.lock
