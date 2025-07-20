@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal, engine
-from .models import Base, Role, User, UserRole
+from .models import Role, User, UserRole
 from .security import SecurityService
 
 load_dotenv()

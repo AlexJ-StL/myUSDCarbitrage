@@ -1,5 +1,9 @@
 """Security module for USDC arbitrage API."""
 
+# Import from the main security.py file
+from ..security import SecurityService
+
+# Import specific functions from security modules
 from .jwt import (
     create_access_token,
     create_refresh_token,
@@ -32,4 +36,5 @@ __all__ = [
     "check_strategy_write_access",
     "check_strategy_delete_access",
     "get_current_user_ws",
+    "SecurityService",
 ]

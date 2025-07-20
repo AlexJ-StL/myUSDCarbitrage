@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from .routers import reporting
+from .routers import on_demand_reports
 
 # Other routers would be imported here as they are built
 # from .routers import strategies, backtests, auth
@@ -13,6 +14,7 @@ app = FastAPI(
 
 # Include Routers
 app.include_router(reporting.router, prefix="/api/v1")
+app.include_router(on_demand_reports.router, prefix="/api/v1")
 # app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
 # app.include_router(strategies.router, prefix="/api/v1", tags=["Strategies"])
 
