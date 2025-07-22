@@ -24,14 +24,16 @@ A comprehensive backtesting system for USDC arbitrage strategies across multiple
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/yourusername/usdc-arbitrage.git
    cd usdc-arbitrage
    ```
 
 2. Create and activate a virtual environment:
+
    ```bash
-   python -m venv .venv
+   uv venv .venv
    # On Windows
    .venv\Scripts\activate
    # On Unix/MacOS
@@ -39,11 +41,13 @@ A comprehensive backtesting system for USDC arbitrage strategies across multiple
    ```
 
 3. Install dependencies:
+
    ```bash
-   pip install -e .
+   uv pip install -e .
    ```
 
 4. Set up the database:
+
    ```bash
    # Run the database setup script
    psql -U postgres -f .sql/database_setup.sql
