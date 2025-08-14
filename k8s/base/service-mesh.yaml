@@ -1,0 +1,44 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: usdc-arbitrage-vs
+spec:
+  hosts:
+    - api.usdc-arbitrage.example.com
+  gateways:
+    - usdc-arbitrage-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /api
+      route:
+        - destination:
+            host: usdc-arbitrage-api
+            port:
+              number: 80
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: usdc-arbitrage-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - api.usdc-arbitrage.example.com
+      tls:
+        httpsRedirect: true
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - api.usdc-arbitrage.example.com
+      tls:
+        mode: SIMPLE
+        credentialName: usdc-arbitrage-tls

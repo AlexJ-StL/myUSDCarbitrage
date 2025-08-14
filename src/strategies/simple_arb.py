@@ -1,3 +1,7 @@
+"""Simple arbitrage strategy implementation."""
+
+from typing import Any
+
 import pandas as pd
 
 
@@ -6,14 +10,26 @@ def strategy_simple_arb(
     buy_threshold: float,
     sell_threshold: float,
     initial_capital: float,
-):
+) -> dict[str, Any]:
+    """
+    Execute a simple arbitrage strategy based on price thresholds.
+
+    Args:
+        df: DataFrame with OHLCV data including 'timestamp' and 'close' columns
+        buy_threshold: Price level below which to buy USDC
+        sell_threshold: Price level above which to sell USDC
+        initial_capital: Starting capital amount
+
+    Returns:
+        Dictionary containing trades and portfolio value history
+    """
     position = 0.0
     cash = initial_capital
     trades = []
     portfolio = [{"date": df.iloc[0]["timestamp"], "value": float(cash)}]
 
-    for i, row in df.iterrows():
-        price = row["close"]
+    for _, row in df.iterrows():
+        price = float(row["close"])
 
         if price <= buy_threshold and cash > 0:
             position = cash / price
@@ -40,6 +56,6 @@ def strategy_simple_arb(
             )
 
         portfolio_value = cash + (position * price)
-        portfolio.append({"date": row["timestamp"], "value": portfolio_value})
+        portfolio.append({"date": row["timestamp"], "value": float(portfolio_value)})
 
     return {"trades": trades, "portfolio": portfolio}

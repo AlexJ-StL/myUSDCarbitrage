@@ -1,14 +1,16 @@
-import sys
+"""Test module for data validation functionality."""
+
 import os
-import pytest
-from unittest.mock import patch, MagicMock
+import sys
+from unittest.mock import patch
+
 import pandas as pd
 
 sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
 )
 
-from api.data_validation import DataValidator  # Correct import
+from api.data_validation import DataValidator
 
 
 @patch("api.data_validation.DBConnector")

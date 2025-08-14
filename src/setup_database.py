@@ -1,14 +1,12 @@
-import os
-import psycopg2
+"""Database setup script for USDC arbitrage application."""
 
-# We'll use environment variables if available, but provide defaults
-# No dotenv dependency required
+import os
+
+import psycopg2
 
 
 def setup_database():
-    """
-    Set up the database using the SQL commands from database_setup.sql
-    """
+    """Set up the database using the SQL commands from database_setup.sql."""
     # Connect to default postgres database first (to create our new database)
     conn = psycopg2.connect(
         dbname="postgres",
@@ -22,7 +20,7 @@ def setup_database():
     sql_file_path = os.path.join(
         os.path.dirname(os.path.dirname(__file__)), ".sql", "database_setup.sql"
     )
-    with open(sql_file_path, "r") as f:
+    with open(sql_file_path, encoding="utf-8") as f:
         sql_script = f.read()
 
     # Split the script into individual commands
@@ -42,7 +40,7 @@ def setup_database():
                     except psycopg2.Error as e:
                         print(f"Error executing command: {e}")
                         # Continue with other commands even if one fails
-    except Exception as e:
+    except psycopg2.Error as e:
         print(f"Database setup error: {e}")
     finally:
         conn.close()
